@@ -5,7 +5,7 @@ export default function Sidebar() {
   return (
     <div className='sidebar'>
         <div className='sidebar-header'>
-
+            LALACOMPANY BILLING SOFTWARE
         </div>
         <div className='sidebar-menu'>
             <div className='sidebarbutton'>Generate Bill</div>

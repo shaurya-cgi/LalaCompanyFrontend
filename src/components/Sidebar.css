@@ -1,12 +1,11 @@
 .sidebar{
-    padding-top: 40px;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     justify-content: flex-start;
-    width: 240px;
+    width: 280px;
     height: 100%;
-    background-color: var(--bg);
+    background-color: #16171d;
     border-right: 1px solid var(--border);
 }
 
@@ -14,16 +13,27 @@
     display: flex;
     align-items: center;
     padding: 10px 20px;
-    width: 150px;
+    width: 100%;
     border-radius: 5px;
     color: var(--text);
     text-decoration: none;
     border: 1px solid var(--border);
-    margin: 10px 10px 10px 10px;
+    margin: 10px;
 }
 
 .sidebar-menu{
     display: flex;
     flex-direction: column;
-    gap: 5px;
+}
+.sidebar-header{
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-h);
+    margin: 10px 10px 10px 10px;
+    padding: 10px 0;
+}
+
+.sidebar-menu .sidebarbutton:hover{
+    background-color: var(--border);
+    cursor: pointer;
 }
