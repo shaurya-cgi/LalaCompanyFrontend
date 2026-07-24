@@ -4,13 +4,15 @@ import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
 import MainLayout from './layouts/MainLayout'
 import './App.css'
+import Home from './components/Home'
 
 function App() {
   const [count, setCount] = useState(0)
 
   return (
     <>
-      <MainLayout></MainLayout>
+      <MainLayout>
+      </MainLayout>
     </>
   )
 }
