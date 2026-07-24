@@ -5,7 +5,6 @@ function Home() {
   return (
     <>
     <div className='billingarea'>
-        <h1>Generate Invoice</h1>
         <h3>Enter details for Invoice</h3>
         <div className='buyerinvoicedetails'>
             <div className='buyerdetails'>
@@ -94,6 +93,10 @@ function Home() {
                     </tr>
                 </table>
             </div>
+        </div>
+        <div className='generateinvoice'>
+            <button className='printinvoice'>Print Invoice</button>
+            <button className='downloadinvoice'>Download Invoice</button>
         </div>
     </div>
     </>

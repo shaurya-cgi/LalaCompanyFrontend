@@ -1,6 +1,6 @@
 :root {
-  --text: #1b1a1d;
-  --text-h: #08060d;
+  --text-lm: #1b1a1d;
+  --text-lm-h: #08060d;
   --bg: #fff;
   --border: #e5e4e7;
   --code-bg: #f4f3ec;
@@ -18,7 +18,7 @@
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
   color-scheme: light dark;
-  color: var(--text);
+  color: var(--text-lm);
   background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -32,11 +32,11 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #ffffff;
-    --border: #2e303a;
-    --code-bg: #1f2028;
+    --text-dm: #9ca3af;
+    --text-dm-h: #f3f4f6;
+    --bg-dm: #231b29;
+    --border-dm: #2e303a;
+    --code-bg-dm  : #1f2028;
     --accent: #c084fc;
     --accent-bg: rgba(192, 132, 252, 0.15);
     --accent-border: rgba(192, 132, 252, 0.5);
