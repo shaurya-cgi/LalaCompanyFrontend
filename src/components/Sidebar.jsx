@@ -1,8 +1,9 @@
 import React from 'react'
 import './Sidebar.css'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 
 function Sidebar() {
+    const location = useLocation()
   return (
     <div className='sidebar'>
         <div className='sidebar-header'>

@@ -31,7 +31,8 @@
 
 .sidebarbutton.active {
   background-color: var(--active-bg-dm);
-  color: var(--active-text-dm);
+  color: #ffffff;
+  font-weight: bold;
 }
 
 .sidebar-menu{
