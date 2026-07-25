@@ -1,7 +1,7 @@
 import React from 'react'
 import './MainLayout.css'
 import Sidebar from '../components/Sidebar'
-import Home from '../components/Home'
+import Home from '../pages/Home'
 import HomeHeader from '../components/HomeHeader'
 
 

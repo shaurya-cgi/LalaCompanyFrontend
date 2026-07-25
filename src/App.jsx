@@ -4,7 +4,7 @@ import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
 import MainLayout from './layouts/MainLayout'
 import './App.css'
-import Home from './components/Home'
+import Home from './pages/Home'
 
 function App() {
   const [count, setCount] = useState(0)
