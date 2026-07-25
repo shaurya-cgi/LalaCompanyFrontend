@@ -17,18 +17,28 @@
 .sidebarbutton{
     display: flex;
     align-items: center;
+    text-align: center;
+    justify-content: center;
+    font-size: 16px;
     padding: 10px 20px;
     border-radius: 5px;
     color: var(--text-dm);
+    background-color: var(--bg-dm);
     text-decoration: none;
     border: 1px solid var(--border);
     margin: 10px;
+}
+
+.sidebarbutton.active {
+  background-color: var(--active-bg-dm);
+  color: var(--active-text-dm);
 }
 
 .sidebar-menu{
     display: flex;
     flex-direction: column;
     max-width: 280px;
+    gap: 10px;
     width: 100%;
     height: 100vh;
 }

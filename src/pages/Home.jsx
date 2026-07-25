@@ -5,6 +5,7 @@ function Home() {
   return (
     <>
     <div className='billingarea'>
+        <h1>Generate Invoice</h1>
         <h3>Enter details for Invoice</h3>
         <div className='buyerinvoicedetails'>
             <div className='buyerdetails'>
@@ -22,7 +23,7 @@ function Home() {
                 <input type="text" className="gstin" placeholder="Enter GSTIN" value="128919jdfjio09"></input>
                 
                 <label htmlFor="billingaddress">Billing Address</label>
-                <textarea type="text" className="billingaddress" placeholder="Enter billing address" value="19-312-0, 12312, qwiejow-13124"></textarea>
+                <textarea className="billingaddress" placeholder="Enter billing address" value="19-312-0, 12312, qwiejow-13124"></textarea>
             </div>
             <div className='invoicedetails'>
 

@@ -34,7 +34,13 @@
     background-color: var(--bg);
     width: 150px;
     color: var(--text-h);
+    
 }
+h1{
+    --text-lm: #131313;
+    --text-lm-h: #0f0f0f;
+}
+
 .buyerdetails{
     display:flex;
     flex-direction: column;
