@@ -1,18 +1,23 @@
 .sidebar{
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    justify-content: flex-start;
+    align-items: flex-end;
+    justify-content: flex-end;
     width: 280px;
+    max-width: 280px;
+    height: 100vh;
+    height: 100%;
     background-color: #16171d;
     border-right: 1px solid var(--border);
+    position: fixed;
+    top: 0;
+    left: 0;
 }
 
 .sidebarbutton{
     display: flex;
     align-items: center;
     padding: 10px 20px;
-    width: 100%;
     border-radius: 5px;
     color: var(--text-dm);
     text-decoration: none;
@@ -23,6 +28,9 @@
 .sidebar-menu{
     display: flex;
     flex-direction: column;
+    max-width: 280px;
+    width: 100%;
+    height: 100vh;
 }
 .sidebar-header{
     font-size: 20px;
