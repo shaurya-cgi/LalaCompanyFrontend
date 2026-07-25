@@ -3,6 +3,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    background-color: var(--bg);
+    color: var(--text-h);
     width: 100vh;
 }
 
@@ -17,17 +19,20 @@
     padding: 10px;
     width: 100%;
 }
-.buyerinvoicedetails label, .buyerinvoicedetails input, .buyerinvoicedetails select{
+.buyerinvoicedetails label, .buyerinvoicedetails input, .buyerinvoicedetails select, .buyerinvoicedetails textarea{
     font-family: var(--sans);
+    background-color: var(--bg);
+    color: var(--text-h);
     font-weight: 500;
     font-size: 15px;
     margin: 5px;
 }
-.buyerinvoicedetails input, .buyerinvoicedetails select{
+.buyerinvoicedetails input, .buyerinvoicedetails select, .buyerinvoicedetails textarea{
     padding: 5px 10px;
     border: 1px solid var(--border);
     border-radius: 5px;
     background-color: var(--bg);
+    width: 150px;
     color: var(--text-h);
 }
 .buyerdetails{
