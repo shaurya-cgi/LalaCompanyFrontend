@@ -2,9 +2,12 @@ import React from 'react'
 
 function Buyers() {
   return (
-    <div>Buyers
-
-        <h1>BUYERS PAGE</h1>
+    <div>
+        <h1>Buyers</h1>
+        <table>
+            <thead>
+            </thead>
+        </table>
     </div>
   )
 }
