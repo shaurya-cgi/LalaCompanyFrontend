@@ -6,9 +6,10 @@
 }
 .mainarea{
     display: flex;
-    flex-direction: row;
-    justify-content: center;
-    background-color: var(--bg);    
+    flex-direction: column;
+    padding-left: 300px;
+    padding-right: 20px;
+    background-color: var(--bg);
 }
 
 .header{

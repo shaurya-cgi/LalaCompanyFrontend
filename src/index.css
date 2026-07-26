@@ -107,3 +107,41 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+label,  input,  select,  textarea{
+    font-family: var(--sans);
+    background-color: var(--bg);
+    color: var(--text-h);
+    font-weight: 500;
+    font-size: 15px;
+    margin: 5px;
+}
+.buyerinvoicedetailsinput,  select,  textarea{
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background-color: var(--bg);
+    color: var(--text-h);
+    width: 250px;
+
+    
+}
+h1{
+    --text-lm: #131313;
+    --text-lm-h: #0f0f0f;
+}
+
+button{
+    font-weight: 600;
+    font-size: 15px;
+    padding: 10px 20px;
+    border: 1px solid var(--accent);
+    background-color: var(--accent-bg);
+    color: var(--text-lm-h);
+    border-radius: 5px;
+}
+button:hover{
+    background-color: var(--accent);
+    color: var(--text-lm);
+    cursor: pointer;
+}

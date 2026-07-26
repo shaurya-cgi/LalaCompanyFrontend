@@ -1,7 +1,16 @@
-import React from 'react'
+import React, {useState} from 'react'
 import './Home.css'
+import ItemDialog from '../components/ItemDialog.jsx';
+import axios from "axios";
 
 function Home() {
+    const [items, setItems] = useState([]);
+    const [showItemDialog, setShowItemDialog] = useState(false);
+    const addItem = (newItem) => {
+        setItems(prev => [...prev, newItem]);
+        setShowItemDialog(false);
+    };
+
   return (
     <>
     <div className='billingarea'>
@@ -10,8 +19,8 @@ function Home() {
         <div className='buyerinvoicedetails'>
             <div className='buyerdetails'>
                 <label htmlFor="buyers" className='buyerselect'>Select Buyer:</label>
-                <select name="buyers" id="buyers"  placeholder="Select Buyer">
-                <option value="" disabled selected hidden>Select Buyer</option>
+                <select name="buyers" id="buyers"  placeholder="Select Buyer" defaultValue="">
+                <option value="" disabled hidden>Select Buyer</option>
                 <option value="">Volvo</option>
                 <option value="buyer1">Buyer1</option>
                 <option value="buyer1">Buyer1</option>
@@ -20,7 +29,7 @@ function Home() {
                 </select>
                 
                 <label htmlFor="gstin">GSTIN</label>
-                <input type="text" className="gstin" placeholder="Enter GSTIN" value="128919jdfjio09"></input>
+                <input type="text" className="gstin" placeholder="Enter GSTIN" defaultValue="128919jdfjio09"></input>
                 
                 <label htmlFor="billingaddress">Billing Address</label>
                 <textarea className="billingaddress" placeholder="Enter billing address" value="19-312-0, 12312, qwiejow-13124"></textarea>
@@ -36,48 +45,42 @@ function Home() {
         </div>
         <div className='items'>
             <table>
+                <thead>
+                <tr>
+
                 <th>S.no</th>
                 <th>Product</th>
                 <th>Quantity</th>
                 <th>Rate</th>
                 <th>GstRate</th>
                 <th>Price</th>
-                <tr>
-                    <td>1.</td>
-                    <td>prod1</td>
-                    <td>3</td>
-                    <td>1000</td>
-                    <td>18%</td>
-                    <td>1180</td>
                 </tr>
-                <tr>
-                    <td>2.</td>
-                    <td>prod2</td>
-                    <td>5</td>
-                    <td>2144</td>
-                    <td>18%</td>
-                    <td>2910</td>
-                </tr>
-                <tr>
-                    <td>3.</td>
-                    <td>prod1</td>
-                    <td>3</td>
-                    <td>1000</td>
-                    <td>18%</td>
-                    <td>1180</td>
-                </tr>
-                <tr>
-                    <td>4.</td>
-                    <td><select name="product" id="productselector">
-                        <option value="p1">p1</option>
-                        <option value="p2">p2</option>
-                        </select>
-                    </td>
+                </thead>
+                    <tbody>
+                        {items.map((item, index) => (
+                            <tr key={index}>
+                            <td>{index + 1}</td>
+                            <td>{item.itemName}</td>
+                            <td>{item.quantity}</td>
+                            <td>{item.rate}</td>
+                            <td>{item.gst}</td>
+                            <td>{item.price}</td>
+                            </tr>
+                        ))}
 
-                </tr>
+                        <tr>
+                            <td colSpan={6}>
+                            <button onClick={() => setShowItemDialog(true)}>
+                                + Add Item
+                            </button>
+                            </td>
+                        </tr>
+                    </tbody>
             </table>
             <div className='totaltable'>
                 <table>
+                    <thead>
+
                     <tr>
                     <th>SubTotal</th>
                     <td>12000</td>
@@ -87,11 +90,14 @@ function Home() {
                     <th>GST</th>
                     <td>3000</td>
                     </tr>
+                    </thead>
+                    <tbody>
                     <tr>
 
                     <th>Grand Total</th>
                     <td>15000</td>
                     </tr>
+                    </tbody>
                 </table>
             </div>
         </div>
@@ -100,6 +106,11 @@ function Home() {
             <button className='downloadinvoice'>Download Invoice</button>
         </div>
     </div>
+    {
+        showItemDialog &&(
+            <ItemDialog onClose={()=>setShowItemDialog(false)} onSave={addItem}/>
+        )
+    }
     </>
   )
 }
