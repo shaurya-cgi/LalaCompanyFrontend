@@ -13,7 +13,6 @@ const defaultForm = {
   bankName: "",
   accountNumber: "",
   ifsc: "",
-  upi: "",
 };
 
 const resolveAssetUrl = (value) => {
@@ -47,7 +46,6 @@ const toCompanyPayload = (companyId, formData) => ({
   bankName: formData.bankName,
   ifscCode: formData.ifsc,
   accNumber: formData.accountNumber,
-  upi: formData.upi,
 });
 
 function Settings() {
@@ -80,7 +78,6 @@ function Settings() {
         bankName: settings.bankName || "",
         accountNumber: settings.accountNumber || settings.accNumber || "",
         ifsc: settings.ifsc || settings.ifscCode || "",
-        upi: settings.upi || "",
       });
 
       setSignatureUrl(
@@ -215,8 +212,6 @@ function Settings() {
           <label htmlFor="ifsc">IFSC</label>
           <input id="ifsc" value={formData.ifsc} onChange={handleChange} />
 
-          <label htmlFor="upi">UPI</label>
-          <input id="upi" value={formData.upi} onChange={handleChange} />
         </div>
 
         <div className="settings-actions">
