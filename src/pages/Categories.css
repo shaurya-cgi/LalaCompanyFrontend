@@ -1,0 +1,25 @@
+.categories-page {
+  align-items: stretch;
+  padding: 10px 30px 30px;
+  box-sizing: border-box;
+}
+
+.categories-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.category-dialog {
+  width: 560px;
+}
+
+.empty-categories-row {
+  text-align: center;
+  color: #666;
+  padding: 20px 0;
+}
+
+.categories-message {
+  margin-top: 14px;
+}
