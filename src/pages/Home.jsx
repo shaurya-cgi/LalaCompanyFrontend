@@ -81,6 +81,51 @@ function Home() {
   };
 
   const totals = calculateTotals();
+      const increaseQuantity = (index) => {
+      setItems((prev) =>
+        prev.map((item, i) =>
+          i === index
+            ? {
+                ...item,
+                quantity: item.quantity + 1,
+                price: Number(
+                  (
+                    item.rate *
+                    (item.quantity + 1) *
+                    (1 + item.gst / 100)
+                  ).toFixed(2),
+                ),
+              }
+            : item,
+        ),
+      );
+    };
+
+    const decreaseQuantity = (index) => {
+      setItems((prev) =>
+        prev.map((item, i) =>
+          i === index
+            ? {
+                ...item,
+                quantity: Math.max(1, item.quantity - 1),
+                price: Number(
+                  (
+                    item.rate *
+                    Math.max(1, item.quantity - 1) *
+                    (1 + item.gst / 100)
+                  ).toFixed(2),
+                ),
+              }
+            : item,
+        ),
+      );
+    };
+
+    const removeItem = (index) => {
+      setItems((prev) => prev.filter((_, i) => i !== index));
+    };
+
+
 
   return (
     <>
@@ -153,6 +198,7 @@ function Home() {
                 <th>Rate</th>
                 <th>GstRate</th>
                 <th>Price</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -160,10 +206,31 @@ function Home() {
                 <tr key={index}>
                   <td>{index + 1}</td>
                   <td>{item.productName}</td>
-                  <td>{item.quantity}</td>
+                  <td>
+                    <button
+                      type="button"
+                      onClick={() => decreaseQuantity(index)}
+                    >
+                      -
+                    </button>
+
+                    <span style={{ margin: "0 10px" }}>{item.quantity}</span>
+
+                    <button
+                      type="button"
+                      onClick={() => increaseQuantity(index)}
+                    >
+                      +
+                    </button>
+                  </td>
                   <td>₹{item.rate.toFixed(2)}</td>
                   <td>{item.gst}%</td>
                   <td>₹{item.price.toFixed(2)}</td>
+                  <td>
+                    <button type="button" onClick={() => removeItem(index)}>
+                      Remove
+                    </button>
+                  </td>
                 </tr>
               ))}
 
