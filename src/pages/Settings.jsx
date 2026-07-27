@@ -1,11 +1,16 @@
 import React, { useEffect, useState } from "react";
 import "./Settings.css";
 import companyApi from "../api/companyApi";
-import { API_ORIGIN } from "../api/axiosClient";
+import settingsApi from "../api/settingsApi";
+import { extractSignatureValue, resolveAssetUrl } from "../utils/signature";
+
+const SIGNATURE_CACHE_KEY = "company_signature_data_url";
 
 const defaultForm = {
   companyName: "",
   address: "",
+  city: "",
+  pinCode: "",
   phone: "",
   email: "",
   gstin: "",
@@ -13,18 +18,6 @@ const defaultForm = {
   bankName: "",
   accountNumber: "",
   ifsc: "",
-};
-
-const resolveAssetUrl = (value) => {
-  if (!value) {
-    return "";
-  }
-
-  if (value.startsWith("http://") || value.startsWith("https://")) {
-    return value;
-  }
-
-  return `${API_ORIGIN}${value.startsWith("/") ? "" : "/"}${value}`;
 };
 
 const normalizeCompanyRecord = (payload) => {
@@ -42,11 +35,22 @@ const toCompanyPayload = (companyId, formData) => ({
   mobile: formData.phone,
   email: formData.email,
   billingAddress: formData.address,
+  city: formData.city,
+  pinCode: formData.pinCode,
   state: formData.state,
   bankName: formData.bankName,
   ifscCode: formData.ifsc,
   accNumber: formData.accountNumber,
 });
+
+const fileToDataUrl =
+  (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(String(reader.result || ""));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
 function Settings() {
   const [companyId, setCompanyId] = useState(null);
@@ -71,6 +75,8 @@ function Settings() {
       setFormData({
         companyName: settings.companyName || "",
         address: settings.address || settings.billingAddress || "",
+        city: settings.city || "",
+        pinCode: settings.pinCode || "",
         phone: settings.phone || settings.mobile || "",
         email: settings.email || "",
         gstin: settings.gstin || "",
@@ -81,10 +87,15 @@ function Settings() {
       });
 
       setSignatureUrl(
-        resolveAssetUrl(
-          settings.signatureUrl || settings.signaturePath || settings.signImagePath || "",
-        ),
+        resolveAssetUrl(extractSignatureValue(settings)),
       );
+
+      if (!extractSignatureValue(settings)) {
+        const cachedSignature = localStorage.getItem(SIGNATURE_CACHE_KEY) || "";
+        if (cachedSignature) {
+          setSignatureUrl(cachedSignature);
+        }
+      }
     } catch (error) {
       console.error(error);
       setMessage("Failed to load settings.");
@@ -154,16 +165,26 @@ function Settings() {
         throw new Error("Company settings must be created before signature upload.");
       }
 
-      const uploadRes = await companyApi.uploadSignature(activeCompanyId, selectedSignature);
-      const uploadedPath =
-        uploadRes?.data?.signatureUrl ||
-        uploadRes?.data?.signaturePath ||
-        uploadRes?.data?.signImagePath ||
-        uploadRes?.data?.path ||
-        "";
+      let uploadRes;
+
+      try {
+        uploadRes = await companyApi.uploadSignature(activeCompanyId, selectedSignature);
+      } catch (primaryError) {
+        uploadRes = await settingsApi.uploadSignature(selectedSignature);
+        console.warn("Company signature upload failed, used settings fallback endpoint.", primaryError);
+      }
+
+      const uploadedPath = extractSignatureValue(uploadRes?.data || uploadRes);
+      const localSignatureDataUrl = await fileToDataUrl(selectedSignature);
 
       if (uploadedPath) {
         setSignatureUrl(resolveAssetUrl(uploadedPath));
+      } else if (localSignatureDataUrl) {
+        setSignatureUrl(localSignatureDataUrl);
+      }
+
+      if (localSignatureDataUrl) {
+        localStorage.setItem(SIGNATURE_CACHE_KEY, localSignatureDataUrl);
       }
 
       setSelectedSignature(null);
@@ -188,10 +209,16 @@ function Settings() {
           <label htmlFor="companyName">Company Name</label>
           <input id="companyName" value={formData.companyName} onChange={handleChange} />
 
-          <label htmlFor="address">Address</label>
+          <label htmlFor="address">Billing Address</label>
           <textarea id="address" rows={3} value={formData.address} onChange={handleChange} />
 
-          <label htmlFor="phone">Phone</label>
+          <label htmlFor="city">City</label>
+          <input id="city" value={formData.city} onChange={handleChange} />
+
+          <label htmlFor="pinCode">Pin Code</label>
+          <input id="pinCode" value={formData.pinCode} onChange={handleChange} />
+
+          <label htmlFor="phone">Mobile</label>
           <input id="phone" value={formData.phone} onChange={handleChange} />
 
           <label htmlFor="email">Email</label>

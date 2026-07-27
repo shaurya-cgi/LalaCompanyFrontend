@@ -52,6 +52,13 @@
 
 body {
   margin: 0;
+  min-width: 320px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 #root {
@@ -116,15 +123,19 @@ label,  input,  select,  textarea{
     font-size: 15px;
     margin: 5px;
 }
+.buyerinvoicedetailsinput,
+input,
+select,
+textarea {
+  width: 100%;
+  max-width: 100%;
+}
 .buyerinvoicedetailsinput,  select,  textarea{
     padding: 5px 10px;
     border: 1px solid var(--border);
     border-radius: 5px;
     background-color: var(--bg);
     color: var(--text-h);
-    width: 250px;
-
-    
 }
 h1{
     --text-lm: #131313;
@@ -144,4 +155,34 @@ button:hover{
     background-color: var(--accent);
     color: var(--text-lm);
     cursor: pointer;
+}
+
+img,
+svg,
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  h1 {
+    font-size: 32px;
+    line-height: 1.2;
+    margin: 16px 0;
+  }
+
+  h2 {
+    font-size: 18px;
+  }
 }

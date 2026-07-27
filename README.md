@@ -16,3 +16,16 @@ Note: This will impact Vite dev & build performances.
 ## Expanding the Oxlint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+
+## API Configuration (Elastic Beanstalk)
+
+The frontend reads API base URL from `VITE_API_BASE_URL`.
+
+- Local default: `https://localhost:7034/api` (when running on localhost)
+- Non-local default: `<current-origin>/api`
+
+For Elastic Beanstalk deployments, set:
+
+- `VITE_API_BASE_URL=https://<your-api-domain>/api`
+
+If your backend returns signature paths like `/uploads/signatures/a.png`, the frontend now auto-resolves them against API origin and renders them in Settings preview, invoice page, and PDF generation.

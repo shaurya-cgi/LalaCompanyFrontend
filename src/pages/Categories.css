@@ -23,3 +23,21 @@
 .categories-message {
   margin-top: 14px;
 }
+
+.category-dialog {
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .categories-page {
+    padding: 10px 0 24px;
+  }
+
+  .categories-toolbar {
+    justify-content: stretch;
+  }
+
+  .categories-toolbar > button {
+    width: 100%;
+  }
+}

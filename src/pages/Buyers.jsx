@@ -85,46 +85,50 @@ function Buyers() {
                 setShowCreateBuyerDialog(true);
             }}>Add Buyer</button>
         </div>
-        <table>
-            <thead>
-                <tr>
-                <th>S.No.</th>
-                <th>Party Name</th>
-                <th>GSTIN</th>
-                <th>City</th>
-                <th>State</th>
-                <th>Pin Code</th>
-                <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {buyers.map((buyer, index) => (
-                    <tr key={buyer.id}>
-                        <td>{index + 1}</td>
-                        <td>{buyer.partyName}</td>
-                        <td>{buyer.gstin}</td>
-                        <td>{buyer.city}</td>
-                        <td>{buyer.state}</td>
-                        <td>{buyer.pinCode}</td>
-                        <td>
-                            <button
-                                className="editbutton"
-                                onClick={() => {
-                                    setSelectedBuyer(buyer);
-                                    setShowEditBuyerDialog(true);
-                                }}
-                            >
-                                Edit
-                            </button>
-
-                            <button className="deletebutton" onClick={() => handleDeleteBuyer(buyer.id)}>
-                                Delete
-                            </button>
-                        </td>
+        <div className='table-scroll'>
+            <table>
+                <thead>
+                    <tr>
+                    <th>S.No.</th>
+                    <th>Party Name</th>
+                    <th>GSTIN</th>
+                    <th>City</th>
+                    <th>State</th>
+                    <th>Pin Code</th>
+                    <th>Actions</th>
                     </tr>
-                ))}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {buyers.map((buyer, index) => (
+                        <tr key={buyer.id}>
+                            <td>{index + 1}</td>
+                            <td>{buyer.partyName}</td>
+                            <td>{buyer.gstin}</td>
+                            <td>{buyer.city}</td>
+                            <td>{buyer.state}</td>
+                            <td>{buyer.pinCode}</td>
+                            <td>
+                                <div className='buyers-actions'>
+                                    <button
+                                        className="editbutton"
+                                        onClick={() => {
+                                            setSelectedBuyer(buyer);
+                                            setShowEditBuyerDialog(true);
+                                        }}
+                                    >
+                                        Edit
+                                    </button>
+
+                                    <button className="deletebutton" onClick={() => handleDeleteBuyer(buyer.id)}>
+                                        Delete
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
         </div>
         {
             showCreateBuyerDialog && (

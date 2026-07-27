@@ -3,7 +3,10 @@ import "./Invoices.css";
 import invoicesApi from "../api/invoicesApi";
 import invoiceItemApi from "../api/invoiceItemApi";
 import companyApi from "../api/companyApi";
-import { API_ORIGIN } from "../api/axiosClient";
+import { downloadInvoicePdf, printInvoicePdf } from "../utils/invoicePdf";
+import { extractSignatureValue, resolveAssetUrl } from "../utils/signature";
+
+const SIGNATURE_CACHE_KEY = "company_signature_data_url";
 
 const parseInvoiceDate = (value) => (value || "").split("T")[0] || "";
 
@@ -14,7 +17,6 @@ const normalizeInvoice = (invoice) => {
     id: invoice.id ?? invoice.invoiceId,
     invoiceNo: invoice.invoiceNo || "",
     invoiceDate: parseInvoiceDate(invoice.invoiceDate),
-    status: invoice.status || "Pending",
     subtotal: Number(invoice.subtotal || 0),
     gstAmount: Number(invoice.gstAmount || 0),
     totalAmount: Number(invoice.totalAmount || 0),
@@ -35,92 +37,6 @@ const normalizeInvoice = (invoice) => {
   };
 };
 
-const buildInvoiceMarkup = (invoice, company, signatureUrl, includeSignature) => {
-  const rows = (invoice.items || []).map(
-    (item, index) => `
-      <tr>
-        <td>${index + 1}</td>
-        <td>${item.productName || "-"}</td>
-        <td>${Number(item.qty || 0).toFixed(2)}</td>
-        <td>Rs. ${Number(item.rate || 0).toFixed(2)}</td>
-        <td>${Number(item.gstRate || 0).toFixed(2)}%</td>
-        <td>Rs. ${Number(item.totalAmount || 0).toFixed(2)}</td>
-      </tr>
-    `,
-  ).join("");
-
-  return `
-    <div class="invoice-print-root">
-      <h2>${company?.companyName || "Lala Company"}</h2>
-      <p>${company?.address || company?.billingAddress || ""}</p>
-      <p>${[company?.phone || company?.mobile, company?.email].filter(Boolean).join(" | ")}</p>
-      <h3>Invoice ${invoice.invoiceNo || ""}</h3>
-
-      <div class="invoice-meta">
-        <p><strong>Invoice No:</strong> ${invoice.invoiceNo || "-"}</p>
-        <p><strong>Date:</strong> ${invoice.invoiceDate || "-"}</p>
-        <p><strong>Buyer:</strong> ${invoice.buyerName || "-"}</p>
-      </div>
-
-      <table>
-        <thead>
-          <tr>
-            <th>S.No</th>
-            <th>Product</th>
-            <th>Qty</th>
-            <th>Rate</th>
-            <th>GST</th>
-            <th>Total</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-
-      <div class="totals">
-        <p>Subtotal: Rs. ${Number(invoice.subtotal || 0).toFixed(2)}</p>
-        <p>GST: Rs. ${Number(invoice.gstAmount || 0).toFixed(2)}</p>
-        <p><strong>Grand Total: Rs. ${Number(invoice.totalAmount || 0).toFixed(2)}</strong></p>
-      </div>
-
-      ${includeSignature && signatureUrl ? `<div class="signature"><p>Authorized Signature</p><img src="${signatureUrl}" alt="Signature" /></div>` : ""}
-    </div>
-  `;
-};
-
-const buildPrintPageHtml = (bodyMarkup) => `
-<!doctype html>
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Invoice</title>
-    <style>
-      body { font-family: Arial, sans-serif; color: #111; margin: 24px; }
-      .invoice-print-root { width: 100%; }
-      .invoice-meta { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
-      table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-      th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-      .totals { margin-top: 14px; text-align: right; }
-      .signature { margin-top: 24px; text-align: right; }
-      .signature img { width: 160px; object-fit: contain; }
-    </style>
-  </head>
-  <body>${bodyMarkup}</body>
-</html>
-`;
-
-const resolveAssetUrl = (value) => {
-  if (!value) {
-    return "";
-  }
-
-  if (value.startsWith("http://") || value.startsWith("https://")) {
-    return value;
-  }
-
-  return `${API_ORIGIN}${value.startsWith("/") ? "" : "/"}${value}`;
-};
-
 const normalizeCompanyRecord = (payload) => {
   if (Array.isArray(payload)) {
     return payload[0] || null;
@@ -128,7 +44,6 @@ const normalizeCompanyRecord = (payload) => {
 
   return payload || null;
 };
-
 function Invoices() {
   const [invoices, setInvoices] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -162,9 +77,8 @@ function Invoices() {
       .then((res) => {
         const data = normalizeCompanyRecord(res.data);
         setCompanySettings(data);
-        setSignatureUrl(
-          resolveAssetUrl(data?.signatureUrl || data?.signaturePath || data?.signImagePath || ""),
-        );
+        const remoteSignature = resolveAssetUrl(extractSignatureValue(data));
+        setSignatureUrl(remoteSignature || localStorage.getItem(SIGNATURE_CACHE_KEY) || "");
       })
       .catch(() => {
         setCompanySettings(null);
@@ -201,22 +115,43 @@ function Invoices() {
     return normalized;
   };
 
+  const buildBuyerForPdf = (invoice) => {
+    const buyerFromInvoice = invoice.buyer || {};
+    const address =
+      invoice.buyerAddress ||
+      invoice.billingAddress ||
+      buyerFromInvoice.address ||
+      buyerFromInvoice.billingAddress ||
+      [
+        buyerFromInvoice.billingAddress,
+        buyerFromInvoice.city,
+        buyerFromInvoice.state,
+        buyerFromInvoice.pinCode,
+      ]
+        .filter(Boolean)
+        .join(", ");
+
+    return {
+      name: invoice.buyerName || buyerFromInvoice.partyName || buyerFromInvoice.name || "",
+      gstin: invoice.buyerGstin || invoice.gstin || buyerFromInvoice.gstin || "",
+      address,
+    };
+  };
+
+  const buildPdfPayload = (invoice) => ({
+    invoice,
+    company: {
+      ...(companySettings || {}),
+      signatureUrl,
+    },
+    buyer: buildBuyerForPdf(invoice),
+    items: invoice.items || [],
+  });
+
   const handlePrintInvoice = async (invoiceSummary) => {
     try {
       const invoice = await getInvoiceForAction(invoiceSummary);
-      const bodyMarkup = buildInvoiceMarkup(invoice, companySettings, signatureUrl, false);
-      const printWindow = window.open("", "_blank", "width=900,height=700");
-
-      if (!printWindow) {
-        setError("Popup blocked. Please allow popups and try print again.");
-        return;
-      }
-
-      printWindow.document.open();
-      printWindow.document.write(buildPrintPageHtml(bodyMarkup));
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
+      await printInvoicePdf(buildPdfPayload(invoice));
     } catch (err) {
       console.error(err);
       setError("Failed to prepare invoice for print.");
@@ -229,50 +164,10 @@ function Invoices() {
 
     try {
       const invoice = await getInvoiceForAction(invoiceSummary);
-      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-        import("html2canvas"),
-        import("jspdf"),
-      ]);
-
-      const container = document.createElement("div");
-      container.style.position = "fixed";
-      container.style.left = "-99999px";
-      container.style.top = "0";
-      container.style.width = "900px";
-      container.style.background = "#fff";
-      container.style.padding = "20px";
-      container.innerHTML = buildInvoiceMarkup(invoice, companySettings, signatureUrl, true);
-      document.body.appendChild(container);
-
-      const canvas = await html2canvas(container, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
+      await downloadInvoicePdf({
+        ...buildPdfPayload(invoice),
+        fileName: `Invoice-${invoice.invoiceNo || invoice.id}.pdf`,
       });
-
-      document.body.removeChild(container);
-
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-
-      pdf.save(`Invoice-${invoice.invoiceNo || invoice.id}.pdf`);
     } catch (err) {
       console.error(err);
       setError("Failed to download invoice PDF.");
@@ -427,63 +322,59 @@ function Invoices() {
 
       {error && <p className="invoices-error">{error}</p>}
 
-      <table className="invoices-table">
-        <thead>
-          <tr>
-            <th>Invoice No</th>
-            <th>Date</th>
-            <th>Buyer</th>
-            <th>Total</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {invoices.length === 0 && !isLoading ? (
+      <div className="table-scroll">
+        <table className="invoices-table">
+          <thead>
             <tr>
-              <td colSpan={6}>No invoices found.</td>
+              <th>Invoice No</th>
+              <th>Date</th>
+              <th>Buyer</th>
+              <th>Total</th>
+              <th>Actions</th>
             </tr>
-          ) : (
-            invoices.map((invoice) => (
-              <tr key={resolveInvoiceId(invoice)}>
-                <td>{invoice.invoiceNo}</td>
-                <td>{parseInvoiceDate(invoice.invoiceDate)}</td>
-                <td>{invoice.buyerName || "-"}</td>
-                <td>₹{Number(invoice.totalAmount || 0).toFixed(2)}</td>
-                <td>
-                  <span className={`status ${(invoice.status || "Pending").toLowerCase()}`}>
-                    {invoice.status || "Pending"}
-                  </span>
-                </td>
-                <td className="actions">
-                  <button
-                    type="button"
-                    className="editbutton"
-                    onClick={() => handleOpenEdit(invoice)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-view"
-                    onClick={() => handlePrintInvoice(invoice)}
-                  >
-                    Print
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-download"
-                    disabled={isDownloading}
-                    onClick={() => handleDownloadInvoice(invoice)}
-                  >
-                    {isDownloading ? "Preparing..." : "Download"}
-                  </button>
-                </td>
+          </thead>
+          <tbody>
+            {invoices.length === 0 && !isLoading ? (
+              <tr>
+                <td colSpan={5}>No invoices found.</td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+            ) : (
+              invoices.map((invoice) => (
+                <tr key={resolveInvoiceId(invoice)}>
+                  <td>{invoice.invoiceNo}</td>
+                  <td>{parseInvoiceDate(invoice.invoiceDate)}</td>
+                  <td>{invoice.buyerName || "-"}</td>
+                  <td>₹{Number(invoice.totalAmount || 0).toFixed(2)}</td>
+                  <td className="actions">
+                    <button
+                      type="button"
+                      className="editbutton"
+                      onClick={() => handleOpenEdit(invoice)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-view"
+                      onClick={() => handlePrintInvoice(invoice)}
+                    >
+                      Print
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-download"
+                      disabled={isDownloading}
+                      onClick={() => handleDownloadInvoice(invoice)}
+                    >
+                      {isDownloading ? "Preparing..." : "Download"}
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {editingInvoice && (
         <div className="edit-dialog-overlay">
@@ -519,81 +410,83 @@ function Invoices() {
               <input value={editingInvoice.buyerName || "-"} readOnly />
             </div>
 
-            <table className="edit-items-table">
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Qty</th>
-                  <th>Rate</th>
-                  <th>GST %</th>
-                  <th>Total</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {editingInvoice.items.map((item, index) => {
-                  if (item.isDeleted) {
-                    return null;
-                  }
+            <div className="table-scroll">
+              <table className="edit-items-table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Qty</th>
+                    <th>Rate</th>
+                    <th>GST %</th>
+                    <th>Total</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {editingInvoice.items.map((item, index) => {
+                    if (item.isDeleted) {
+                      return null;
+                    }
 
-                  return (
-                    <tr key={`${item.id || item.productId}-${index}`}>
-                      <td>{item.productName}</td>
-                      <td>
-                        <input
-                          type="number"
-                          min="1"
-                          value={item.qty}
-                          onChange={(e) =>
-                            handleItemFieldChange(index, "qty", Number(e.target.value))
-                          }
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={item.rate}
-                          onChange={(e) =>
-                            handleItemFieldChange(
-                              index,
-                              "rate",
-                              Number(e.target.value),
-                            )
-                          }
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={item.gstRate}
-                          onChange={(e) =>
-                            handleItemFieldChange(
-                              index,
-                              "gstRate",
-                              Number(e.target.value),
-                            )
-                          }
-                        />
-                      </td>
-                      <td>₹{Number(item.totalAmount || 0).toFixed(2)}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn-delete"
-                          onClick={() => handleDeleteEditItem(index)}
-                        >
-                          Remove
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                    return (
+                      <tr key={`${item.id || item.productId}-${index}`}>
+                        <td>{item.productName}</td>
+                        <td>
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.qty}
+                            onChange={(e) =>
+                              handleItemFieldChange(index, "qty", Number(e.target.value))
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.rate}
+                            onChange={(e) =>
+                              handleItemFieldChange(
+                                index,
+                                "rate",
+                                Number(e.target.value),
+                              )
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.gstRate}
+                            onChange={(e) =>
+                              handleItemFieldChange(
+                                index,
+                                "gstRate",
+                                Number(e.target.value),
+                              )
+                            }
+                          />
+                        </td>
+                        <td>₹{Number(item.totalAmount || 0).toFixed(2)}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn-delete"
+                            onClick={() => handleDeleteEditItem(index)}
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
             <div className="edit-totals">
               <p>Subtotal: ₹{editTotals.subtotal.toFixed(2)}</p>

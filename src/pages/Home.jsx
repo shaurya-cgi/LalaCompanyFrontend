@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "./Home.css";
 import ItemDialog from "../components/ItemDialog.jsx";
 import buyerApi from "../api/buyerApi.js";
@@ -7,7 +7,10 @@ import categoryApi from "../api/categoryApi.js";
 import invoicesApi from "../api/invoicesApi.js";
 import invoiceItemApi from "../api/invoiceItemApi.js";
 import companyApi from "../api/companyApi.js";
-import { API_ORIGIN } from "../api/axiosClient.js";
+import { downloadInvoicePdf, printInvoicePdf } from "../utils/invoicePdf";
+import { extractSignatureValue, resolveAssetUrl } from "../utils/signature";
+
+const SIGNATURE_CACHE_KEY = "company_signature_data_url";
 
 const normalizeBuyerPrice = (entry) => ({
   id: entry.id,
@@ -26,18 +29,6 @@ const normalizeProduct = (product) => ({
       : [],
 });
 
-const resolveAssetUrl = (value) => {
-  if (!value) {
-    return "";
-  }
-
-  if (value.startsWith("http://") || value.startsWith("https://")) {
-    return value;
-  }
-
-  return `${API_ORIGIN}${value.startsWith("/") ? "" : "/"}${value}`;
-};
-
 const normalizeCompanyRecord = (payload) => {
   if (Array.isArray(payload)) {
     return payload[0] || null;
@@ -45,10 +36,7 @@ const normalizeCompanyRecord = (payload) => {
 
   return payload || null;
 };
-
 function Home() {
-  const invoiceRef = useRef(null);
-
   const [buyers, setBuyers] = useState([]);
   const [selectedBuyerId, setSelectedBuyerId] = useState("");
   const [items, setItems] = useState([]);
@@ -81,14 +69,8 @@ function Home() {
 
         const loadedCompany = normalizeCompanyRecord(companyRes.data);
         setCompanySettings(loadedCompany);
-        setSignatureUrl(
-          resolveAssetUrl(
-            loadedCompany?.signatureUrl ||
-            loadedCompany?.signaturePath ||
-            loadedCompany?.signImagePath ||
-            "",
-          ),
-        );
+        const remoteSignature = resolveAssetUrl(extractSignatureValue(loadedCompany));
+        setSignatureUrl(remoteSignature || localStorage.getItem(SIGNATURE_CACHE_KEY) || "");
       })
       .catch((err) => {
         console.error(err);
@@ -197,7 +179,6 @@ function Home() {
     subtotal: totals.subtotal,
     gstAmount: totals.tax,
     totalAmount: totals.grandTotal,
-    status: "Pending",
   });
 
   const buildInvoiceItemsPayload = (savedInvoiceId) =>
@@ -271,55 +252,93 @@ function Home() {
     return saveInvoice();
   };
 
+  const buildInvoicePdfPayload = (savedId) => ({
+    invoice: {
+      id: savedId,
+      invoiceNo,
+      invoiceDate,
+      subtotal: totals.subtotal,
+      gstAmount: totals.tax,
+      totalAmount: totals.grandTotal,
+      items: items.map((item) => {
+        const qty = Number(item.quantity || 0);
+        const rate = Number(item.rate || 0);
+        const gstRate = Number(item.gst || 0);
+        const amount = Number((qty * rate).toFixed(2));
+        const gstAmount = Number((amount * (gstRate / 100)).toFixed(2));
+
+        return {
+          productName: item.productName,
+          qty,
+          rate,
+          gstRate,
+          amount,
+          gstAmount,
+          totalAmount: Number((amount + gstAmount).toFixed(2)),
+        };
+      }),
+    },
+    company: {
+      ...(companySettings || {}),
+      signatureUrl,
+    },
+    buyer: {
+      name: selectedBuyer?.partyName,
+      gstin: selectedBuyer?.gstin,
+      address: billingAddress,
+      city: selectedBuyer?.city,
+      state: selectedBuyer?.state,
+      pinCode: selectedBuyer?.pinCode,
+      billingAddress: selectedBuyer?.billingAddress,
+    },
+    items: items.map((item) => {
+      const qty = Number(item.quantity || 0);
+      const rate = Number(item.rate || 0);
+      const gstRate = Number(item.gst || 0);
+      const amount = Number((qty * rate).toFixed(2));
+      const gstAmount = Number((amount * (gstRate / 100)).toFixed(2));
+
+      return {
+        productName: item.productName,
+        qty,
+        rate,
+        gstRate,
+        amount,
+        gstAmount,
+        totalAmount: Number((amount + gstAmount).toFixed(2)),
+      };
+    }),
+    signatureUrl,
+  });
+
   const handlePrintInvoice = async () => {
     const savedId = await ensureInvoiceSaved();
     if (!savedId) {
       return;
     }
 
-    window.print();
+    try {
+      setMessage("Preparing invoice print...");
+      await printInvoicePdf(buildInvoicePdfPayload(savedId));
+      setMessage("Invoice sent to printer.");
+    } catch (error) {
+      console.error(error);
+      setMessage("Failed to print invoice.");
+    }
   };
 
   const handleDownloadInvoice = async () => {
     const savedId = await ensureInvoiceSaved();
-    if (!savedId || !invoiceRef.current) {
+    if (!savedId) {
       return;
     }
 
     try {
       setMessage("Preparing invoice PDF...");
-      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-        import("html2canvas"),
-        import("jspdf"),
-      ]);
-
-      const canvas = await html2canvas(invoiceRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
+      await downloadInvoicePdf({
+        ...buildInvoicePdfPayload(savedId),
+        fileName: `invoice-${invoiceNo || savedId}.pdf`,
       });
-
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-
-      pdf.save(`invoice-${invoiceNo || savedId}.pdf`);
       setMessage("Invoice PDF downloaded.");
     } catch (error) {
       console.error(error);
@@ -331,7 +350,7 @@ function Home() {
 
   return (
     <>
-      <div className="billingarea invoice-document" ref={invoiceRef}>
+      <div className="billingarea invoice-document">
         <h1>Generate Invoice</h1>
         {companySettings?.companyName && <h3>{companySettings.companyName}</h3>}
         {(companySettings?.address || companySettings?.billingAddress) && (
@@ -402,60 +421,62 @@ function Home() {
           </div>
         </div>
         <div className="items">
-          <table>
-            <thead>
-              <tr>
-                <th>S.no</th>
-                <th>Product</th>
-                <th>Quantity</th>
-                <th>Rate</th>
-                <th>GstRate</th>
-                <th>Price</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item, index) => (
-                <tr key={index}>
-                  <td>{index + 1}</td>
-                  <td>{item.productName}</td>
-                  <td>
-                    <button
-                      type="button"
-                      onClick={() => decreaseQuantity(index)}
-                    >
-                      -
-                    </button>
+          <div className="table-scroll">
+            <table className="invoice-items-table">
+              <thead>
+                <tr>
+                  <th>S.no</th>
+                  <th>Product</th>
+                  <th>Quantity</th>
+                  <th>Rate</th>
+                  <th>GstRate</th>
+                  <th>Price</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, index) => (
+                  <tr key={index}>
+                    <td>{index + 1}</td>
+                    <td>{item.productName}</td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => decreaseQuantity(index)}
+                      >
+                        -
+                      </button>
 
-                    <span style={{ margin: "0 10px" }}>{item.quantity}</span>
+                      <span style={{ margin: "0 10px" }}>{item.quantity}</span>
 
-                    <button
-                      type="button"
-                      onClick={() => increaseQuantity(index)}
-                    >
-                      +
-                    </button>
-                  </td>
-                  <td>₹{Number(item.rate || 0).toFixed(2)}</td>
-                  <td>{item.gst}%</td>
-                  <td>₹{Number(item.price || 0).toFixed(2)}</td>
-                  <td>
-                    <button type="button" onClick={() => removeItem(index)}>
-                      Remove
+                      <button
+                        type="button"
+                        onClick={() => increaseQuantity(index)}
+                      >
+                        +
+                      </button>
+                    </td>
+                    <td>₹{Number(item.rate || 0).toFixed(2)}</td>
+                    <td>{item.gst}%</td>
+                    <td>₹{Number(item.price || 0).toFixed(2)}</td>
+                    <td>
+                      <button type="button" onClick={() => removeItem(index)}>
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+                <tr>
+                  <td colSpan={6}>
+                    <button onClick={handleOpenItemDialog}>
+                      + Add Item
                     </button>
                   </td>
                 </tr>
-              ))}
-
-              <tr>
-                <td colSpan={6}>
-                  <button onClick={handleOpenItemDialog}>
-                    + Add Item
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
           <div className="totaltable">
             <table>
               <tbody>

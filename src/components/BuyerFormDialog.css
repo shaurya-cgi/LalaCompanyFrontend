@@ -10,6 +10,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    padding: 16px;
 
     z-index: 1000;
 }
@@ -114,4 +115,25 @@
 
 .dialog-actions button:hover {
     opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+    .createBuyerDialog {
+        width: 100%;
+        max-width: none;
+        padding: 18px;
+    }
+
+    .addbuyerform {
+        grid-template-columns: 1fr;
+    }
+
+    .full-width,
+    .dialog-actions {
+        grid-column: span 1;
+    }
+
+    .dialog-actions {
+        flex-direction: column-reverse;
+    }
 }

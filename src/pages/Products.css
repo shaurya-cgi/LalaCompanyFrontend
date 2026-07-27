@@ -91,10 +91,18 @@
   margin-top: 16px;
 }
 
+.products-table {
+  min-width: 760px;
+}
+
 @media (max-width: 900px) {
   .products-toolbar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .products-toolbar > button {
+    width: 100%;
   }
 
   .products-filter select {
@@ -105,5 +113,9 @@
   .buyer-price-item {
     grid-template-columns: 1fr;
     justify-items: start;
+  }
+
+  .products-page {
+    padding: 10px 0 24px;
   }
 }

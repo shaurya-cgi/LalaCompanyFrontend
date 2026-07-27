@@ -1,14 +1,15 @@
 .mainlayout{
     display: flex;
     width: 100%;
-    height: 100vh;
-    flex-direction: column;
+    min-height: 100svh;
 }
 .mainarea{
     display: flex;
     flex-direction: column;
-    padding-left: 300px;
-    padding-right: 20px;
+    flex: 1;
+    min-width: 0;
+    margin-left: 280px;
+    padding: 24px;
     background-color: var(--bg);
 }
 
@@ -22,4 +23,19 @@
     flex: 1;
     background-color: var(--bg);
     padding: 20px;
+}
+
+@media (max-width: 900px) {
+    .mainlayout {
+        flex-direction: column;
+    }
+
+    .mainarea {
+        margin-left: 0;
+        padding: 16px;
+    }
+
+    .content {
+        padding: 0;
+    }
 }

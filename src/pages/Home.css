@@ -6,6 +6,8 @@
     background-color: var(--bg);
     color: var(--text-h);
     width: 100%;
+    padding: 10px 20px 30px;
+    box-sizing: border-box;
 }
 
 .buyerinvoicedetails{
@@ -18,6 +20,7 @@
     margin: 10px;
     padding: 10px;
     width: 100%;
+    gap: 20px;
 }
 
 .buyerdetails{
@@ -25,6 +28,7 @@
     flex-direction: column;
     align-items: flex-start;
     justify-content: flex-start;
+    width: 100%;
 }
 
 table{
@@ -48,6 +52,8 @@ table td, table th{
     align-items: flex-end;
     justify-content: flex-end;
     margin-left: 20px;
+    width: 100%;
+    max-width: 320px;
 }
 .items{
     display:flex;
@@ -56,10 +62,15 @@ table td, table th{
     justify-content: flex-start;
     margin-top: 20px;
     width: 100%;
+    gap: 16px;
 }
 .items > .totaltable{
     width: 100%;
     align-items: flex-end;
+}
+
+.invoice-items-table {
+    min-width: 760px;
 }
 
 .generateinvoice{
@@ -69,6 +80,8 @@ table td, table th{
     gap: 10px;
     justify-content: flex-end;
     margin: 20px 100px 50px 100px;
+    width: calc(100% - 200px);
+    flex-wrap: wrap;
 }
 
 .signature-section {
@@ -95,6 +108,43 @@ table td, table th{
     color: #155724;
     font-weight: 600;
     align-self: flex-end;
+}
+
+@media (max-width: 768px) {
+    .billingarea {
+        padding: 10px 0 24px;
+    }
+
+    .buyerinvoicedetails {
+        flex-direction: column;
+        margin: 10px 0;
+        padding: 0;
+    }
+
+    .invoicedetails {
+        align-items: flex-start;
+        margin-left: 0;
+        max-width: none;
+    }
+
+    .generateinvoice {
+        width: 100%;
+        margin: 12px 0 24px;
+        justify-content: stretch;
+    }
+
+    .generateinvoice button {
+        width: 100%;
+    }
+
+    .signature-section,
+    .invoice-message {
+        align-self: stretch;
+    }
+
+    .invoice-message {
+        margin: 0 0 20px;
+    }
 }
 
 @media print {

@@ -4,6 +4,8 @@
     align-items: center;
     justify-content: center;
     width: 100%;
+    padding: 10px 20px 30px;
+    box-sizing: border-box;
 }
 
 .buyersearchadd{
@@ -11,6 +13,8 @@
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
+    width: 100%;
+    gap: 12px;
 }
 
 .buyersearch{
@@ -19,4 +23,26 @@
     align-items: flex-start;
     justify-content: space-between;
     width: 100%;
+}
+
+.buyers-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+    .buyermainarea {
+        padding: 10px 0 24px;
+    }
+
+    .buyersearchadd {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .buyersearchadd > button {
+        width: 100%;
+    }
 }

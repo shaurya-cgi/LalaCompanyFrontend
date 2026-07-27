@@ -124,51 +124,55 @@ function Categories() {
           </button>
         </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th>S.No.</th>
-              <th>Category Name</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {categories.map((category, index) => (
-              <tr key={category.id}>
-                <td>{index + 1}</td>
-                <td>{category.categoryName}</td>
-                <td>
-                  <button
-                    type="button"
-                    className="editbutton"
-                    onClick={() => {
-                      setSelectedCategory(category);
-                      setShowEditDialog(true);
-                    }}
-                  >
-                    Edit
-                  </button>
-
-                  <button
-                    type="button"
-                    className="deletebutton"
-                    onClick={() => handleDelete(category.id)}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-
-            {categories.length === 0 && (
+        <div className="table-scroll">
+          <table>
+            <thead>
               <tr>
-                <td colSpan={3} className="empty-categories-row">
-                  No categories found.
-                </td>
+                <th>S.No.</th>
+                <th>Category Name</th>
+                <th>Actions</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {categories.map((category, index) => (
+                <tr key={category.id}>
+                  <td>{index + 1}</td>
+                  <td>{category.categoryName}</td>
+                  <td>
+                    <div className="buyers-actions">
+                      <button
+                        type="button"
+                        className="editbutton"
+                        onClick={() => {
+                          setSelectedCategory(category);
+                          setShowEditDialog(true);
+                        }}
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        type="button"
+                        className="deletebutton"
+                        onClick={() => handleDelete(category.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+
+              {categories.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="empty-categories-row">
+                    No categories found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {message && <p className="categories-message">{message}</p>}
       </div>

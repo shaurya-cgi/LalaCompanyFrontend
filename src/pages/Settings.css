@@ -71,7 +71,16 @@
   flex-wrap: wrap;
 }
 
+.signature-upload-row button {
+  width: auto;
+}
+
 @media (max-width: 900px) {
+  .settings-form,
+  .signature-card {
+    padding: 14px;
+  }
+
   .settings-grid {
     grid-template-columns: 1fr;
   }
@@ -81,6 +90,14 @@
   }
 
   .settings-actions button {
+    width: 100%;
+  }
+
+  .signature-upload-row {
+    align-items: stretch;
+  }
+
+  .signature-upload-row button {
     width: 100%;
   }
 }

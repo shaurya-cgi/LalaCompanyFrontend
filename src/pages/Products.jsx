@@ -559,84 +559,88 @@ function Products() {
           </button>
         </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th>S.No.</th>
-              <th>Model Name</th>
-              <th>Category</th>
-              <th>Default Price</th>
-              <th>Buyer Price</th>
-              <th>GST (%)</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
+        <div className="table-scroll">
+          <table className="products-table">
+            <thead>
+              <tr>
+                <th>S.No.</th>
+                <th>Model Name</th>
+                <th>Category</th>
+                <th>Default Price</th>
+                <th>Buyer Price</th>
+                <th>GST (%)</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
 
-          <tbody>
-            {filteredProducts.map((product, index) => {
-              const { defaultPrice, customPrice, effectivePrice } = getEffectivePrice(
-                product,
-                selectedBuyerFilterId,
-              );
+            <tbody>
+              {filteredProducts.map((product, index) => {
+                const { defaultPrice, customPrice, effectivePrice } = getEffectivePrice(
+                  product,
+                  selectedBuyerFilterId,
+                );
 
-              return (
-                <tr key={product.id}>
-                  <td>{index + 1}</td>
-                  <td>{product.modelName}</td>
-                  <td>{categoryNameById.get(Number(product.categoryId)) || "-"}</td>
-                  <td>Rs. {defaultPrice.toFixed(2)}</td>
-                  <td>
-                    {selectedBuyerFilterId ? (
-                      customPrice !== null ? (
-                        <>
-                          Rs. {customPrice.toFixed(2)}
-                          <div className="effective-price-note">
-                            Effective: Rs. {effectivePrice.toFixed(2)}
-                          </div>
-                        </>
+                return (
+                  <tr key={product.id}>
+                    <td>{index + 1}</td>
+                    <td>{product.modelName}</td>
+                    <td>{categoryNameById.get(Number(product.categoryId)) || "-"}</td>
+                    <td>Rs. {defaultPrice.toFixed(2)}</td>
+                    <td>
+                      {selectedBuyerFilterId ? (
+                        customPrice !== null ? (
+                          <>
+                            Rs. {customPrice.toFixed(2)}
+                            <div className="effective-price-note">
+                              Effective: Rs. {effectivePrice.toFixed(2)}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <span className="fallback-note">-</span>
+                            <div className="effective-price-note">
+                              Effective: Rs. {effectivePrice.toFixed(2)}
+                            </div>
+                          </>
+                        )
                       ) : (
-                        <>
-                          <span className="fallback-note">-</span>
-                          <div className="effective-price-note">
-                            Effective: Rs. {effectivePrice.toFixed(2)}
-                          </div>
-                        </>
-                      )
-                    ) : (
-                      <span className="fallback-note">-</span>
-                    )}
-                  </td>
-                  <td>{Number(product.gstRate ?? product.gstrate ?? 0).toFixed(2)}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="editbutton"
-                      onClick={() => handleEditClick(product)}
-                    >
-                      Edit
-                    </button>
+                        <span className="fallback-note">-</span>
+                      )}
+                    </td>
+                    <td>{Number(product.gstRate ?? product.gstrate ?? 0).toFixed(2)}</td>
+                    <td>
+                      <div className="buyers-actions">
+                        <button
+                          type="button"
+                          className="editbutton"
+                          onClick={() => handleEditClick(product)}
+                        >
+                          Edit
+                        </button>
 
-                    <button
-                      type="button"
-                      className="deletebutton"
-                      onClick={() => handleDeleteProduct(product.id)}
-                    >
-                      Delete
-                    </button>
+                        <button
+                          type="button"
+                          className="deletebutton"
+                          onClick={() => handleDeleteProduct(product.id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {filteredProducts.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="empty-products-row">
+                    No products found for the selected buyer filter.
                   </td>
                 </tr>
-              );
-            })}
-
-            {filteredProducts.length === 0 && (
-              <tr>
-                <td colSpan={7} className="empty-products-row">
-                  No products found for the selected buyer filter.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {message && <p className="products-message">{message}</p>}
       </div>
