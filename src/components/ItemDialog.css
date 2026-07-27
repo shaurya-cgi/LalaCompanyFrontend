@@ -112,3 +112,16 @@
 .dialog-actions button:hover {
     opacity: 0.9;
 }
+
+.pricing-summary {
+    background-color: #f7f7f7;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    text-align: left;
+}
+
+.pricing-summary p {
+    margin: 0;
+    font-size: 14px;
+}

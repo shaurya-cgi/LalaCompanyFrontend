@@ -1,11 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./Home.css";
 import ItemDialog from "../components/ItemDialog.jsx";
 import buyerApi from "../api/buyerApi.js";
-import productApi from "../api/productApi";
+import productApi from "../api/productApi.js";
 import categoryApi from "../api/categoryApi.js";
+import invoicesApi from "../api/invoicesApi.js";
+import invoiceItemApi from "../api/invoiceItemApi.js";
+import signatureImage from "../assets/signature.jpg";
 
 function Home() {
+  const invoiceRef = useRef(null);
+
   const [buyers, setBuyers] = useState([]);
   const [selectedBuyerId, setSelectedBuyerId] = useState("");
   const [items, setItems] = useState([]);
@@ -15,20 +20,23 @@ function Home() {
   const [invoiceDate, setInvoiceDate] = useState(
     new Date().toISOString().split("T")[0],
   );
-  const [invoiceNo, setInvoiceNo] = useState("");
+  const [invoiceNo, setInvoiceNo] = useState(
+    `INV-${Date.now().toString().slice(-6)}`,
+  );
+  const [invoiceId, setInvoiceId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const addItem = (newItem) => {
-    setItems((prev) => [...prev, newItem]);
-    setShowItemDialog(false);
-  };
   useEffect(() => {
-    buyerApi
-      .getAll()
-      .then((res) => {
-        setBuyers(res.data);
+    Promise.all([buyerApi.getAll(), categoryApi.getAll(), productApi.getAll()])
+      .then(([buyersRes, categoriesRes, productsRes]) => {
+        setBuyers(buyersRes.data || []);
+        setCategories(categoriesRes.data || []);
+        setProducts(productsRes.data || []);
       })
       .catch((err) => {
         console.error(err);
+        setMessage("Failed to load buyers/products/categories.");
       });
   }, []);
 
@@ -40,35 +48,32 @@ function Home() {
     ? `${selectedBuyer.billingAddress}, ${selectedBuyer.city}, ${selectedBuyer.state} - ${selectedBuyer.pinCode}`
     : "";
 
-  useEffect(() => {
-    categoryApi
-      .getAll()
-      .then((res) => setCategories(res.data))
-      .catch((err) => console.error(err));
-
-    productApi
-      .getAll()
-      .then((res) => setProducts(res.data))
-      .catch((err) => console.error(err));
-  }, []);
-
   const handleAddItem = (item) => {
     setItems((prev) => [...prev, item]);
+    setInvoiceId(null);
     setShowItemDialog(false);
   };
 
-  useEffect(() => {
-    const newInvoiceNo = items.length + 1;
-    setInvoiceNo(newInvoiceNo);
-  }, [items]);
+  const handleOpenItemDialog = () => {
+    if (!selectedBuyerId) {
+      alert("Select a buyer before adding invoice items.");
+      return;
+    }
 
-  const calculateTotals = () => {
+    setShowItemDialog(true);
+  };
+
+  const totals = useMemo(() => {
     let subtotal = 0;
     let totalGst = 0;
 
     items.forEach((item) => {
-      const baseAmount = item.rate * item.quantity;
-      const gstAmount = baseAmount * (item.gst / 100);
+      const qty = Number(item.quantity || 0);
+      const rate = Number(item.rate || 0);
+      const gstRate = Number(item.gst || 0);
+      const baseAmount = rate * qty;
+      const gstAmount = baseAmount * (gstRate / 100);
+
       subtotal += baseAmount;
       totalGst += gstAmount;
     });
@@ -78,58 +83,199 @@ function Home() {
       tax: parseFloat(totalGst.toFixed(2)),
       grandTotal: parseFloat((subtotal + totalGst).toFixed(2)),
     };
+  }, [items]);
+
+  const recalculateItemPrice = (item) => {
+    const qty = Number(item.quantity || 0);
+    const rate = Number(item.rate || 0);
+    const gstRate = Number(item.gst || 0);
+    return Number((rate * qty * (1 + gstRate / 100)).toFixed(2));
   };
 
-  const totals = calculateTotals();
-      const increaseQuantity = (index) => {
-      setItems((prev) =>
-        prev.map((item, i) =>
-          i === index
-            ? {
+  const increaseQuantity = (index) => {
+    setItems((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              quantity: Number(item.quantity) + 1,
+              price: recalculateItemPrice({
                 ...item,
-                quantity: item.quantity + 1,
-                price: Number(
-                  (
-                    item.rate *
-                    (item.quantity + 1) *
-                    (1 + item.gst / 100)
-                  ).toFixed(2),
-                ),
-              }
-            : item,
+                quantity: Number(item.quantity) + 1,
+              }),
+            }
+          : item,
+      ),
+    );
+    setInvoiceId(null);
+  };
+
+  const decreaseQuantity = (index) => {
+    setItems((prev) =>
+      prev.map((item, i) => {
+        if (i !== index) {
+          return item;
+        }
+
+        const nextQty = Math.max(1, Number(item.quantity) - 1);
+
+        return {
+          ...item,
+          quantity: nextQty,
+          price: recalculateItemPrice({ ...item, quantity: nextQty }),
+        };
+      }),
+    );
+    setInvoiceId(null);
+  };
+
+  const removeItem = (index) => {
+    setItems((prev) => prev.filter((_, i) => i !== index));
+    setInvoiceId(null);
+  };
+
+  const buildInvoicePayload = () => ({
+    invoiceNo,
+    buyerId: Number(selectedBuyerId),
+    invoiceDate,
+    subtotal: totals.subtotal,
+    gstAmount: totals.tax,
+    totalAmount: totals.grandTotal,
+    status: "Pending",
+  });
+
+  const buildInvoiceItemsPayload = (savedInvoiceId) =>
+    items.map((item) => {
+      const qty = Number(item.quantity || 0);
+      const rate = Number(item.rate || 0);
+      const gstRate = Number(item.gst || 0);
+      const amount = Number((qty * rate).toFixed(2));
+      const gstAmount = Number((amount * (gstRate / 100)).toFixed(2));
+
+      return {
+        invoiceId: savedInvoiceId,
+        productId: Number(item.productId),
+        productName: item.productName,
+        qty,
+        rate,
+        amount,
+        gstRate,
+        gstAmount,
+        totalAmount: Number((amount + gstAmount).toFixed(2)),
+      };
+    });
+
+  const saveInvoice = async () => {
+    if (!selectedBuyerId) {
+      alert("Please select a buyer before saving.");
+      return null;
+    }
+
+    if (items.length === 0) {
+      alert("Please add at least one item before saving.");
+      return null;
+    }
+
+    setIsSaving(true);
+    setMessage("");
+
+    try {
+      const invoiceRes = await invoicesApi.create(buildInvoicePayload());
+      const savedInvoiceId =
+        invoiceRes?.data?.id ?? invoiceRes?.data?.invoiceId ?? null;
+
+      if (!savedInvoiceId) {
+        throw new Error("Invoice saved but no invoice id was returned.");
+      }
+
+      const invoiceItemsPayload = buildInvoiceItemsPayload(savedInvoiceId);
+      await Promise.all(
+        invoiceItemsPayload.map((invoiceItem) =>
+          invoiceItemApi.create(invoiceItem),
         ),
       );
-    };
 
-    const decreaseQuantity = (index) => {
-      setItems((prev) =>
-        prev.map((item, i) =>
-          i === index
-            ? {
-                ...item,
-                quantity: Math.max(1, item.quantity - 1),
-                price: Number(
-                  (
-                    item.rate *
-                    Math.max(1, item.quantity - 1) *
-                    (1 + item.gst / 100)
-                  ).toFixed(2),
-                ),
-              }
-            : item,
-        ),
-      );
-    };
+      setInvoiceId(savedInvoiceId);
+      setMessage(`Invoice saved successfully (ID: ${savedInvoiceId}).`);
+      return savedInvoiceId;
+    } catch (error) {
+      console.error(error);
+      setMessage("Failed to save invoice.");
+      return null;
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-    const removeItem = (index) => {
-      setItems((prev) => prev.filter((_, i) => i !== index));
-    };
+  const ensureInvoiceSaved = async () => {
+    if (invoiceId) {
+      return invoiceId;
+    }
+
+    return saveInvoice();
+  };
+
+  const handlePrintInvoice = async () => {
+    const savedId = await ensureInvoiceSaved();
+    if (!savedId) {
+      return;
+    }
+
+    window.print();
+  };
+
+  const handleDownloadInvoice = async () => {
+    const savedId = await ensureInvoiceSaved();
+    if (!savedId || !invoiceRef.current) {
+      return;
+    }
+
+    try {
+      setMessage("Preparing invoice PDF...");
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+
+      const canvas = await html2canvas(invoiceRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save(`invoice-${invoiceNo || savedId}.pdf`);
+      setMessage("Invoice PDF downloaded.");
+    } catch (error) {
+      console.error(error);
+      setMessage("Failed to download invoice PDF.");
+    }
+  };
 
 
 
   return (
     <>
-      <div className="billingarea">
+      <div className="billingarea invoice-document" ref={invoiceRef}>
         <h1>Generate Invoice</h1>
         <h3>Enter details for Invoice</h3>
         <div className="buyerinvoicedetails">
@@ -223,9 +369,9 @@ function Home() {
                       +
                     </button>
                   </td>
-                  <td>₹{item.rate.toFixed(2)}</td>
+                  <td>₹{Number(item.rate || 0).toFixed(2)}</td>
                   <td>{item.gst}%</td>
-                  <td>₹{item.price.toFixed(2)}</td>
+                  <td>₹{Number(item.price || 0).toFixed(2)}</td>
                   <td>
                     <button type="button" onClick={() => removeItem(index)}>
                       Remove
@@ -236,7 +382,7 @@ function Home() {
 
               <tr>
                 <td colSpan={6}>
-                  <button onClick={() => setShowItemDialog(true)}>
+                  <button onClick={handleOpenItemDialog}>
                     + Add Item
                   </button>
                 </td>
@@ -262,15 +408,47 @@ function Home() {
             </table>
           </div>
         </div>
-        <div className="generateinvoice">
-          <button className="printinvoice">Print Invoice</button>
-          <button className="downloadinvoice">Download Invoice</button>
+        <div className="signature-section print-hide-signature">
+          <p>Authorized Signature</p>
+          <img
+            src={signatureImage}
+            alt="Authorized Signature"
+            className="signature-image"
+          />
         </div>
+        <div className="generateinvoice no-print">
+          <button
+            className="saveinvoice"
+            type="button"
+            disabled={isSaving}
+            onClick={saveInvoice}
+          >
+            {isSaving ? "Saving..." : "Save Invoice"}
+          </button>
+          <button
+            className="printinvoice"
+            type="button"
+            disabled={isSaving}
+            onClick={handlePrintInvoice}
+          >
+            Print Invoice
+          </button>
+          <button
+            className="downloadinvoice"
+            type="button"
+            disabled={isSaving}
+            onClick={handleDownloadInvoice}
+          >
+            Download Invoice
+          </button>
+        </div>
+        {message && <p className="invoice-message no-print">{message}</p>}
       </div>
       {showItemDialog && (
         <ItemDialog
           categories={categories}
           products={products}
+          selectedBuyerId={selectedBuyerId}
           onSave={handleAddItem}
           onClose={() => setShowItemDialog(false)}
         />

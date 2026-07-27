@@ -87,3 +87,113 @@
 .invoices-table button:hover {
     opacity: 0.8;
 }
+
+.invoices-page {
+    width: 100%;
+}
+
+.invoices-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.invoices-header button {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    background: #ffffff;
+}
+
+.invoices-error {
+    color: #c62828;
+    margin-bottom: 10px;
+}
+
+.edit-dialog-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    padding: 16px;
+}
+
+.edit-dialog {
+    background: #fff;
+    width: min(1000px, 95vw);
+    max-height: 90vh;
+    overflow: auto;
+    border-radius: 10px;
+    padding: 16px;
+}
+
+.edit-form-grid {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.edit-form-grid input,
+.edit-form-grid select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.edit-items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 12px;
+}
+
+.edit-items-table th,
+.edit-items-table td {
+    border: 1px solid var(--border);
+    padding: 8px;
+    text-align: left;
+}
+
+.edit-items-table input {
+    width: 100%;
+    padding: 6px;
+}
+
+.edit-totals {
+    display: flex;
+    gap: 20px;
+    justify-content: flex-end;
+    font-weight: 600;
+}
+
+.edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.edit-actions button {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+@media (max-width: 768px) {
+    .edit-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .edit-totals {
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+    }
+}

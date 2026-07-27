@@ -70,3 +70,48 @@ table td, table th{
     justify-content: flex-end;
     margin: 20px 100px 50px 100px;
 }
+
+.signature-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    margin-top: 20px;
+}
+
+.signature-section p {
+    margin: 0 0 6px 0;
+    font-weight: 600;
+}
+
+.signature-image {
+    width: 170px;
+    max-width: 100%;
+    object-fit: contain;
+}
+
+.invoice-message {
+    margin: 0 100px 25px 100px;
+    color: #155724;
+    font-weight: 600;
+    align-self: flex-end;
+}
+
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    .print-hide-signature {
+        display: none !important;
+    }
+
+    .billingarea {
+        padding: 0;
+        margin: 0;
+    }
+
+    body {
+        margin: 0;
+    }
+}

@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import "./ItemDialog.css";
 
-function ItemDialog({ categories, products, onClose, onSave }) {
+function ItemDialog({ categories, products, selectedBuyerId, onClose, onSave }) {
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
   const [quantity, setQuantity] = useState(1);
@@ -15,6 +15,26 @@ function ItemDialog({ categories, products, onClose, onSave }) {
   const selectedProduct = products.find(
     (p) => p.id === Number(selectedProductId),
   );
+
+  const pricingDetails = useMemo(() => {
+    if (!selectedProduct) {
+      return null;
+    }
+
+    const defaultPrice = Number(selectedProduct.defaultPrice ?? 0);
+    const customPricing = (selectedProduct.buyerPrices || []).find(
+      (entry) => Number(entry.buyerId) === Number(selectedBuyerId),
+    );
+    const customPrice = customPricing
+      ? Number(customPricing.customPrice)
+      : null;
+
+    return {
+      defaultPrice,
+      customPrice,
+      effectivePrice: customPrice ?? defaultPrice,
+    };
+  }, [selectedProduct, selectedBuyerId]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -77,7 +97,13 @@ function ItemDialog({ categories, products, onClose, onSave }) {
                 const product = products.find((p) => p.id === productId);
 
                 if (product) {
-                  setRate(product.defaultPrice);
+                  const matchedCustomPrice = (product.buyerPrices || []).find(
+                    (entry) => Number(entry.buyerId) === Number(selectedBuyerId),
+                  );
+                  const effectiveRate =
+                    matchedCustomPrice?.customPrice ?? product.defaultPrice;
+
+                  setRate(Number(effectiveRate || 0));
                   setGst(product.gstRate ?? 18);
                 }
               }}
@@ -105,6 +131,15 @@ function ItemDialog({ categories, products, onClose, onSave }) {
 
           {selectedProduct && (
             <>
+              <div className="form-group full-width pricing-summary">
+                <p>Default Price: Rs. {Number(pricingDetails?.defaultPrice || 0).toFixed(2)}</p>
+                <p>
+                  Buyer Price: {pricingDetails?.customPrice !== null
+                    ? `Rs. ${Number(pricingDetails.customPrice).toFixed(2)}`
+                    : "Not set (fallback to default)"}
+                </p>
+              </div>
+
               <div className="form-group">
                 <label>Rate</label>
 
