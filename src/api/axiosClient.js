@@ -15,7 +15,7 @@ const isLocalhostRuntime = () => {
 };
 
 const defaultApiBaseUrl = isLocalhostRuntime()
-    ? "https://localhost:7034/api"
+    ? "https://ec2-35-175-222-129.compute-1.amazonaws.com/api"
     : `${getWindowOrigin()}/api`;
 
 export const API_BASE_URL = trimTrailingSlash(
