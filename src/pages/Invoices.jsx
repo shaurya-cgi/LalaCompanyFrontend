@@ -2,6 +2,132 @@ import React, { useEffect, useMemo, useState } from "react";
 import "./Invoices.css";
 import invoicesApi from "../api/invoicesApi";
 import invoiceItemApi from "../api/invoiceItemApi";
+import companyApi from "../api/companyApi";
+import { API_ORIGIN } from "../api/axiosClient";
+
+const parseInvoiceDate = (value) => (value || "").split("T")[0] || "";
+
+const normalizeInvoice = (invoice) => {
+  const rawItems = invoice.items || invoice.invoiceItems || [];
+
+  return {
+    id: invoice.id ?? invoice.invoiceId,
+    invoiceNo: invoice.invoiceNo || "",
+    invoiceDate: parseInvoiceDate(invoice.invoiceDate),
+    status: invoice.status || "Pending",
+    subtotal: Number(invoice.subtotal || 0),
+    gstAmount: Number(invoice.gstAmount || 0),
+    totalAmount: Number(invoice.totalAmount || 0),
+    buyerName: invoice.buyerName || "",
+    buyerId: invoice.buyerId,
+    items: rawItems.map((item) => ({
+      id: item.id ?? item.invoiceItemId,
+      productId: item.productId,
+      productName: item.productName,
+      qty: Number(item.qty || item.quantity || 0),
+      rate: Number(item.rate || 0),
+      gstRate: Number(item.gstRate || item.gst || 0),
+      amount: Number(item.amount || 0),
+      gstAmount: Number(item.gstAmount || 0),
+      totalAmount: Number(item.totalAmount || item.price || 0),
+      isDeleted: false,
+    })),
+  };
+};
+
+const buildInvoiceMarkup = (invoice, company, signatureUrl, includeSignature) => {
+  const rows = (invoice.items || []).map(
+    (item, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${item.productName || "-"}</td>
+        <td>${Number(item.qty || 0).toFixed(2)}</td>
+        <td>Rs. ${Number(item.rate || 0).toFixed(2)}</td>
+        <td>${Number(item.gstRate || 0).toFixed(2)}%</td>
+        <td>Rs. ${Number(item.totalAmount || 0).toFixed(2)}</td>
+      </tr>
+    `,
+  ).join("");
+
+  return `
+    <div class="invoice-print-root">
+      <h2>${company?.companyName || "Lala Company"}</h2>
+      <p>${company?.address || company?.billingAddress || ""}</p>
+      <p>${[company?.phone || company?.mobile, company?.email].filter(Boolean).join(" | ")}</p>
+      <h3>Invoice ${invoice.invoiceNo || ""}</h3>
+
+      <div class="invoice-meta">
+        <p><strong>Invoice No:</strong> ${invoice.invoiceNo || "-"}</p>
+        <p><strong>Date:</strong> ${invoice.invoiceDate || "-"}</p>
+        <p><strong>Buyer:</strong> ${invoice.buyerName || "-"}</p>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>S.No</th>
+            <th>Product</th>
+            <th>Qty</th>
+            <th>Rate</th>
+            <th>GST</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+
+      <div class="totals">
+        <p>Subtotal: Rs. ${Number(invoice.subtotal || 0).toFixed(2)}</p>
+        <p>GST: Rs. ${Number(invoice.gstAmount || 0).toFixed(2)}</p>
+        <p><strong>Grand Total: Rs. ${Number(invoice.totalAmount || 0).toFixed(2)}</strong></p>
+      </div>
+
+      ${includeSignature && signatureUrl ? `<div class="signature"><p>Authorized Signature</p><img src="${signatureUrl}" alt="Signature" /></div>` : ""}
+    </div>
+  `;
+};
+
+const buildPrintPageHtml = (bodyMarkup) => `
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invoice</title>
+    <style>
+      body { font-family: Arial, sans-serif; color: #111; margin: 24px; }
+      .invoice-print-root { width: 100%; }
+      .invoice-meta { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+      th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+      .totals { margin-top: 14px; text-align: right; }
+      .signature { margin-top: 24px; text-align: right; }
+      .signature img { width: 160px; object-fit: contain; }
+    </style>
+  </head>
+  <body>${bodyMarkup}</body>
+</html>
+`;
+
+const resolveAssetUrl = (value) => {
+  if (!value) {
+    return "";
+  }
+
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return value;
+  }
+
+  return `${API_ORIGIN}${value.startsWith("/") ? "" : "/"}${value}`;
+};
+
+const normalizeCompanyRecord = (payload) => {
+  if (Array.isArray(payload)) {
+    return payload[0] || null;
+  }
+
+  return payload || null;
+};
 
 function Invoices() {
   const [invoices, setInvoices] = useState([]);
@@ -9,6 +135,9 @@ function Invoices() {
   const [error, setError] = useState("");
   const [editingInvoice, setEditingInvoice] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [companySettings, setCompanySettings] = useState(null);
+  const [signatureUrl, setSignatureUrl] = useState("");
 
   const loadInvoices = async () => {
     setIsLoading(true);
@@ -27,6 +156,20 @@ function Invoices() {
 
   useEffect(() => {
     loadInvoices();
+
+    companyApi
+      .get()
+      .then((res) => {
+        const data = normalizeCompanyRecord(res.data);
+        setCompanySettings(data);
+        setSignatureUrl(
+          resolveAssetUrl(data?.signatureUrl || data?.signaturePath || data?.signImagePath || ""),
+        );
+      })
+      .catch(() => {
+        setCompanySettings(null);
+        setSignatureUrl("");
+      });
   }, []);
 
   const resolveInvoiceId = (invoice) => invoice.id ?? invoice.invoiceId;
@@ -40,35 +183,101 @@ function Invoices() {
 
     try {
       const res = await invoicesApi.getById(id);
-      const data = res.data || {};
-      const rawItems = data.items || data.invoiceItems || [];
-      const buyerName = data.buyerName || invoice.buyerName || "";
-
-      setEditingInvoice({
-        id,
-        invoiceNo: data.invoiceNo || "",
-        invoiceDate: (data.invoiceDate || "").split("T")[0] || "",
-        status: data.status || "Pending",
-        subtotal: Number(data.subtotal || 0),
-        gstAmount: Number(data.gstAmount || 0),
-        totalAmount: Number(data.totalAmount || 0),
-        buyerName,
-        buyerId: data.buyerId,
-        items: rawItems.map((item) => ({
-          id: item.id ?? item.invoiceItemId,
-          productId: item.productId,
-          productName: item.productName,
-          qty: Number(item.qty || item.quantity || 0),
-          rate: Number(item.rate || 0),
-          gstRate: Number(item.gstRate || item.gst || 0),
-          amount: Number(item.amount || 0),
-          gstAmount: Number(item.gstAmount || 0),
-          totalAmount: Number(item.totalAmount || item.price || 0),
-          isDeleted: false,
-        })),
-      });
+      const normalized = normalizeInvoice(res.data || {});
+      normalized.buyerName = normalized.buyerName || invoice.buyerName || "";
+      normalized.id = normalized.id || id;
+      setEditingInvoice(normalized);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const getInvoiceForAction = async (invoiceSummary) => {
+    const id = resolveInvoiceId(invoiceSummary);
+    const res = await invoicesApi.getById(id);
+    const normalized = normalizeInvoice(res.data || {});
+    normalized.buyerName = normalized.buyerName || invoiceSummary.buyerName || "";
+    normalized.id = normalized.id || id;
+    return normalized;
+  };
+
+  const handlePrintInvoice = async (invoiceSummary) => {
+    try {
+      const invoice = await getInvoiceForAction(invoiceSummary);
+      const bodyMarkup = buildInvoiceMarkup(invoice, companySettings, signatureUrl, false);
+      const printWindow = window.open("", "_blank", "width=900,height=700");
+
+      if (!printWindow) {
+        setError("Popup blocked. Please allow popups and try print again.");
+        return;
+      }
+
+      printWindow.document.open();
+      printWindow.document.write(buildPrintPageHtml(bodyMarkup));
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+    } catch (err) {
+      console.error(err);
+      setError("Failed to prepare invoice for print.");
+    }
+  };
+
+  const handleDownloadInvoice = async (invoiceSummary) => {
+    setIsDownloading(true);
+    setError("");
+
+    try {
+      const invoice = await getInvoiceForAction(invoiceSummary);
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+
+      const container = document.createElement("div");
+      container.style.position = "fixed";
+      container.style.left = "-99999px";
+      container.style.top = "0";
+      container.style.width = "900px";
+      container.style.background = "#fff";
+      container.style.padding = "20px";
+      container.innerHTML = buildInvoiceMarkup(invoice, companySettings, signatureUrl, true);
+      document.body.appendChild(container);
+
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+
+      document.body.removeChild(container);
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save(`Invoice-${invoice.invoiceNo || invoice.id}.pdf`);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to download invoice PDF.");
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -168,7 +377,6 @@ function Invoices() {
         subtotal: editTotals.subtotal,
         gstAmount: editTotals.gstAmount,
         totalAmount: editTotals.totalAmount,
-        status: editingInvoice.status,
       };
 
       await invoicesApi.update(editingInvoice.id, headerPayload);
@@ -223,8 +431,8 @@ function Invoices() {
         <thead>
           <tr>
             <th>Invoice No</th>
-            <th>Buyer</th>
             <th>Date</th>
+            <th>Buyer</th>
             <th>Total</th>
             <th>Status</th>
             <th>Actions</th>
@@ -239,23 +447,36 @@ function Invoices() {
             invoices.map((invoice) => (
               <tr key={resolveInvoiceId(invoice)}>
                 <td>{invoice.invoiceNo}</td>
+                <td>{parseInvoiceDate(invoice.invoiceDate)}</td>
                 <td>{invoice.buyerName || "-"}</td>
-                <td>{(invoice.invoiceDate || "").split("T")[0]}</td>
                 <td>₹{Number(invoice.totalAmount || 0).toFixed(2)}</td>
                 <td>
-                  <span
-                    className={`status ${(invoice.status || "pending").toLowerCase()}`}
-                  >
+                  <span className={`status ${(invoice.status || "Pending").toLowerCase()}`}>
                     {invoice.status || "Pending"}
                   </span>
                 </td>
                 <td className="actions">
                   <button
                     type="button"
-                    className="btn-view"
+                    className="editbutton"
                     onClick={() => handleOpenEdit(invoice)}
                   >
                     Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-view"
+                    onClick={() => handlePrintInvoice(invoice)}
+                  >
+                    Print
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-download"
+                    disabled={isDownloading}
+                    onClick={() => handleDownloadInvoice(invoice)}
+                  >
+                    {isDownloading ? "Preparing..." : "Download"}
                   </button>
                 </td>
               </tr>
@@ -294,22 +515,6 @@ function Invoices() {
                   }))
                 }
               />
-
-              <label htmlFor="editStatus">Status</label>
-              <select
-                id="editStatus"
-                value={editingInvoice.status}
-                onChange={(e) =>
-                  setEditingInvoice((prev) => ({
-                    ...prev,
-                    status: e.target.value,
-                  }))
-                }
-              >
-                <option value="Pending">Pending</option>
-                <option value="Paid">Paid</option>
-              </select>
-
               <label>Buyer</label>
               <input value={editingInvoice.buyerName || "-"} readOnly />
             </div>

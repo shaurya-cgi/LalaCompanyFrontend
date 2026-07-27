@@ -7,7 +7,7 @@ function Sidebar() {
   return (
     <div className='sidebar'>
         <div className='sidebar-header'>
-            LALACOMPANY BILLING SOFTWARE
+            LALA COMPANY BILLING SOFTWARE
         </div>
         <div className='sidebar-menu'>
             <Link className={`sidebarbutton ${location.pathname === '/' ? 'active' : ''}`} key='/' to='/' >Generate Bill</Link>

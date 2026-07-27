@@ -6,7 +6,45 @@ import productApi from "../api/productApi.js";
 import categoryApi from "../api/categoryApi.js";
 import invoicesApi from "../api/invoicesApi.js";
 import invoiceItemApi from "../api/invoiceItemApi.js";
-import signatureImage from "../assets/signature.jpg";
+import companyApi from "../api/companyApi.js";
+import { API_ORIGIN } from "../api/axiosClient.js";
+
+const normalizeBuyerPrice = (entry) => ({
+  id: entry.id,
+  buyerId: Number(entry.buyerId),
+  buyerName: entry.buyerName || entry.partyName || "",
+  rate: Number(entry.rate ?? entry.customPrice ?? 0),
+});
+
+const normalizeProduct = (product) => ({
+  ...product,
+  gstRate: Number(product.gstRate ?? product.gstrate ?? 0),
+  buyerPrices: Array.isArray(product.buyerPrices)
+    ? product.buyerPrices.map(normalizeBuyerPrice)
+    : Array.isArray(product.buyerProductPrices)
+      ? product.buyerProductPrices.map(normalizeBuyerPrice)
+      : [],
+});
+
+const resolveAssetUrl = (value) => {
+  if (!value) {
+    return "";
+  }
+
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return value;
+  }
+
+  return `${API_ORIGIN}${value.startsWith("/") ? "" : "/"}${value}`;
+};
+
+const normalizeCompanyRecord = (payload) => {
+  if (Array.isArray(payload)) {
+    return payload[0] || null;
+  }
+
+  return payload || null;
+};
 
 function Home() {
   const invoiceRef = useRef(null);
@@ -26,13 +64,31 @@ function Home() {
   const [invoiceId, setInvoiceId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [companySettings, setCompanySettings] = useState(null);
+  const [signatureUrl, setSignatureUrl] = useState("");
 
   useEffect(() => {
-    Promise.all([buyerApi.getAll(), categoryApi.getAll(), productApi.getAll()])
-      .then(([buyersRes, categoriesRes, productsRes]) => {
+    Promise.all([
+      buyerApi.getAll(),
+      categoryApi.getAll(),
+      productApi.getAll(),
+      companyApi.get().catch(() => ({ data: null })),
+    ])
+      .then(([buyersRes, categoriesRes, productsRes, companyRes]) => {
         setBuyers(buyersRes.data || []);
         setCategories(categoriesRes.data || []);
-        setProducts(productsRes.data || []);
+        setProducts((productsRes.data || []).map(normalizeProduct));
+
+        const loadedCompany = normalizeCompanyRecord(companyRes.data);
+        setCompanySettings(loadedCompany);
+        setSignatureUrl(
+          resolveAssetUrl(
+            loadedCompany?.signatureUrl ||
+            loadedCompany?.signaturePath ||
+            loadedCompany?.signImagePath ||
+            "",
+          ),
+        );
       })
       .catch((err) => {
         console.error(err);
@@ -277,6 +333,17 @@ function Home() {
     <>
       <div className="billingarea invoice-document" ref={invoiceRef}>
         <h1>Generate Invoice</h1>
+        {companySettings?.companyName && <h3>{companySettings.companyName}</h3>}
+        {(companySettings?.address || companySettings?.billingAddress) && (
+          <p>{companySettings?.address || companySettings?.billingAddress}</p>
+        )}
+        {(companySettings?.phone || companySettings?.mobile || companySettings?.email) && (
+          <p>
+            {[companySettings?.phone || companySettings?.mobile, companySettings?.email]
+              .filter(Boolean)
+              .join(" | ")}
+          </p>
+        )}
         <h3>Enter details for Invoice</h3>
         <div className="buyerinvoicedetails">
           <div className="buyerdetails">
@@ -410,11 +477,15 @@ function Home() {
         </div>
         <div className="signature-section print-hide-signature">
           <p>Authorized Signature</p>
-          <img
-            src={signatureImage}
-            alt="Authorized Signature"
-            className="signature-image"
-          />
+          {signatureUrl ? (
+            <img
+              src={signatureUrl}
+              alt="Authorized Signature"
+              className="signature-image"
+            />
+          ) : (
+            <p>Signature not uploaded.</p>
+          )}
         </div>
         <div className="generateinvoice no-print">
           <button

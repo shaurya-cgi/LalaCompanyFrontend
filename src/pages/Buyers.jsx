@@ -21,10 +21,6 @@ function Buyers() {
                 console.error(err);
             });
     }, []);
-    const addBuyer = (newBuyer) => {
-        setBuyers(prev => [...prev, newBuyer]);
-        setShowCreateBuyerDialog(false);
-    }
     const handleSaveBuyer = async (newBuyer) => {
         try {
             const response = await buyerApi.create(newBuyer);

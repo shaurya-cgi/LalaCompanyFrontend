@@ -15,12 +15,14 @@ const emptyProductForm = {
 const normalizeBuyerPrice = (record, buyers, fallbackProductId = null) => {
   const buyerId = Number(record.buyerId);
   const buyer = buyers.find((item) => item.id === buyerId);
+  const resolvedRate = Number(record.rate ?? record.customPrice ?? 0);
 
   return {
     id: record.id ?? null,
     buyerId,
     productId: Number(record.productId ?? fallbackProductId ?? 0),
-    customPrice: Number(record.customPrice ?? 0),
+    rate: resolvedRate,
+    customPrice: resolvedRate,
     buyerName: record.buyerName || record.partyName || buyer?.partyName || "Unknown Buyer",
   };
 };
@@ -40,7 +42,9 @@ const getEffectivePrice = (product, buyerId) => {
     (entry) => Number(entry.buyerId) === Number(buyerId),
   );
 
-  const customPrice = customEntry ? Number(customEntry.customPrice) : null;
+  const customPrice = customEntry
+    ? Number(customEntry.rate ?? customEntry.customPrice)
+    : null;
 
   return {
     defaultPrice,
@@ -70,11 +74,13 @@ function ProductDialog({
 
   const [selectedBuyerId, setSelectedBuyerId] = useState("");
   const [customPriceInput, setCustomPriceInput] = useState("");
+  const [editingBuyerId, setEditingBuyerId] = useState(null);
   const [buyerPrices, setBuyerPrices] = useState(
     (initialBuyerPrices || []).map((entry) => ({
       ...entry,
       buyerId: Number(entry.buyerId),
-      customPrice: Number(entry.customPrice),
+      rate: Number(entry.rate ?? entry.customPrice),
+      customPrice: Number(entry.rate ?? entry.customPrice),
     })),
   );
 
@@ -106,11 +112,17 @@ function ProductDialog({
     setBuyerPrices((prev) => {
       const existing = prev.find((entry) => entry.buyerId === buyerId);
 
-      if (existing) {
+      if (existing && editingBuyerId !== buyerId) {
+        alert("Custom price for this buyer already exists. Use Edit to modify.");
+        return prev;
+      }
+
+      if (existing && editingBuyerId === buyerId) {
         return prev.map((entry) =>
           entry.buyerId === buyerId
             ? {
                 ...entry,
+                rate: customPrice,
                 customPrice,
                 buyerName: buyer.partyName,
               }
@@ -124,6 +136,7 @@ function ProductDialog({
           id: null,
           buyerId,
           buyerName: buyer.partyName,
+          rate: customPrice,
           customPrice,
         },
       ];
@@ -131,10 +144,22 @@ function ProductDialog({
 
     setSelectedBuyerId("");
     setCustomPriceInput("");
+    setEditingBuyerId(null);
+  };
+
+  const handleEditBuyerPrice = (entry) => {
+    setSelectedBuyerId(String(entry.buyerId));
+    setCustomPriceInput(String(Number(entry.rate ?? entry.customPrice ?? 0)));
+    setEditingBuyerId(Number(entry.buyerId));
   };
 
   const handleRemoveBuyerPrice = (buyerId) => {
     setBuyerPrices((prev) => prev.filter((entry) => entry.buyerId !== buyerId));
+    if (editingBuyerId === buyerId) {
+      setEditingBuyerId(null);
+      setSelectedBuyerId("");
+      setCustomPriceInput("");
+    }
   };
 
   const handleSubmit = (event) => {
@@ -268,7 +293,7 @@ function ProductDialog({
 
           <div className="form-group add-price-row">
             <button type="button" className="add-price-button" onClick={handleAddBuyerPrice}>
-              Add Price
+              {editingBuyerId ? "Update Price" : "Add Price"}
             </button>
           </div>
 
@@ -280,7 +305,14 @@ function ProductDialog({
                 {buyerPrices.map((entry) => (
                   <div key={entry.buyerId} className="buyer-price-item">
                     <span>{entry.buyerName}</span>
-                    <span>Rs. {Number(entry.customPrice).toFixed(2)}</span>
+                    <span>Rs. {Number(entry.rate ?? entry.customPrice).toFixed(2)}</span>
+                    <button
+                      type="button"
+                      className="editbutton"
+                      onClick={() => handleEditBuyerPrice(entry)}
+                    >
+                      Edit
+                    </button>
                     <button
                       type="button"
                       className="deletebutton"
@@ -333,8 +365,14 @@ function Products() {
       );
 
       const productsWithBuyerPrices = loadedProducts.map((product) => {
-        const nestedBuyerPrices = Array.isArray(product.buyerPrices)
-          ? product.buyerPrices.map((entry) =>
+        const sourceBuyerPrices = Array.isArray(product.buyerPrices)
+          ? product.buyerPrices
+          : Array.isArray(product.buyerProductPrices)
+            ? product.buyerProductPrices
+            : [];
+
+        const nestedBuyerPrices = sourceBuyerPrices.length > 0
+          ? sourceBuyerPrices.map((entry) =>
               normalizeBuyerPrice(
                 {
                   ...entry,
@@ -352,6 +390,7 @@ function Products() {
 
         return {
           ...product,
+          gstRate: Number(product.gstRate ?? product.gstrate ?? 0),
           buyerPrices: nestedBuyerPrices.length > 0 ? nestedBuyerPrices : fallbackBuyerPrices,
         };
       });
@@ -378,20 +417,8 @@ function Products() {
   }, [categories]);
 
   const filteredProducts = useMemo(() => {
-    const buyerId = Number(selectedBuyerFilterId || 0);
-
-    if (!buyerId) {
-      return products;
-    }
-
-    return products.filter((product) => {
-      const match = (product.buyerPrices || []).find(
-        (entry) => Number(entry.buyerId) === buyerId,
-      );
-
-      return Boolean(match);
-    });
-  }, [products, selectedBuyerFilterId]);
+    return products;
+  }, [products]);
 
   const syncBuyerPrices = async (productId, desiredBuyerPrices, existingBuyerPrices = []) => {
     const existingMap = new Map(
@@ -414,11 +441,14 @@ function Products() {
       const payload = {
         buyerId,
         productId,
-        customPrice: Number(desiredEntry.customPrice),
+        rate: Number(desiredEntry.rate ?? desiredEntry.customPrice),
       };
 
       if (existingEntry?.id) {
-        if (Number(existingEntry.customPrice) !== Number(desiredEntry.customPrice)) {
+        if (
+          Number(existingEntry.rate ?? existingEntry.customPrice)
+            !== Number(desiredEntry.rate ?? desiredEntry.customPrice)
+        ) {
           requests.push(buyerProductPriceApi.update(existingEntry.id, payload));
         }
       } else {
@@ -566,17 +596,17 @@ function Products() {
                         </>
                       ) : (
                         <>
-                          <span className="fallback-note">No custom price</span>
+                          <span className="fallback-note">-</span>
                           <div className="effective-price-note">
                             Effective: Rs. {effectivePrice.toFixed(2)}
                           </div>
                         </>
                       )
                     ) : (
-                      <span className="fallback-note">Select buyer filter</span>
+                      <span className="fallback-note">-</span>
                     )}
                   </td>
-                  <td>{Number(product.gstRate ?? 0).toFixed(2)}</td>
+                  <td>{Number(product.gstRate ?? product.gstrate ?? 0).toFixed(2)}</td>
                   <td>
                     <button
                       type="button"

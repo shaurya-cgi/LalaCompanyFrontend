@@ -26,7 +26,7 @@ function ItemDialog({ categories, products, selectedBuyerId, onClose, onSave }) 
       (entry) => Number(entry.buyerId) === Number(selectedBuyerId),
     );
     const customPrice = customPricing
-      ? Number(customPricing.customPrice)
+      ? Number(customPricing.rate ?? customPricing.customPrice)
       : null;
 
     return {
@@ -97,14 +97,18 @@ function ItemDialog({ categories, products, selectedBuyerId, onClose, onSave }) 
                 const product = products.find((p) => p.id === productId);
 
                 if (product) {
+                  console.debug("Selected product for pricing", product);
+
                   const matchedCustomPrice = (product.buyerPrices || []).find(
                     (entry) => Number(entry.buyerId) === Number(selectedBuyerId),
                   );
                   const effectiveRate =
-                    matchedCustomPrice?.customPrice ?? product.defaultPrice;
+                    matchedCustomPrice?.rate ??
+                    matchedCustomPrice?.customPrice ??
+                    product.defaultPrice;
 
                   setRate(Number(effectiveRate || 0));
-                  setGst(product.gstRate ?? 18);
+                  setGst(Number(product.gstRate ?? product.gstrate ?? 18));
                 }
               }}
             >

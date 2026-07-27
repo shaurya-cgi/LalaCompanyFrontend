@@ -7,11 +7,11 @@ const productApi = {
     getById: (id) =>
         axiosClient.get(`/products/${id}`),
 
-    create: (product) =>
-        axiosClient.post("/products", product),
+    create: (data) =>
+        axiosClient.post("/products", data),
 
-    update: (id, product) =>
-        axiosClient.put(`/products/${id}`, product),
+    update: (id, data) =>
+        axiosClient.put(`/products/${id}`, data),
 
     delete: (id) =>
         axiosClient.delete(`/products/${id}`)

@@ -1,20 +1,29 @@
 import axiosClient from "./axiosClient";
 
 const buyerProductPriceApi = {
-  getAll: () => axiosClient.get("/buyerproductprices"),
+    getAll: () =>
+        axiosClient.get("/buyerproductprices"),
 
-  getById: (id) => axiosClient.get(`/buyerproductprices/${id}`),
+    getById: (id) =>
+        axiosClient.get(`/buyerproductprices/${id}`),
 
-  getByProductId: (productId) =>
-    axiosClient.get(`/buyerproductprices/product/${productId}`),
+    getByBuyer: (buyerId) =>
+        axiosClient.get(`/buyerproductprices/buyer/${buyerId}`),
 
-  getByBuyerId: (buyerId) => axiosClient.get(`/buyerproductprices/buyer/${buyerId}`),
+    getByProduct: (productId) =>
+        axiosClient.get(`/buyerproductprices/product/${productId}`),
 
-  create: (payload) => axiosClient.post("/buyerproductprices", payload),
+    getByProductId: (productId) =>
+        axiosClient.get(`/buyerproductprices/product/${productId}`),
 
-  update: (id, payload) => axiosClient.put(`/buyerproductprices/${id}`, payload),
+    create: (data) =>
+        axiosClient.post("/buyerproductprices", data),
 
-  delete: (id) => axiosClient.delete(`/buyerproductprices/${id}`),
+    update: (id, data) =>
+        axiosClient.put(`/buyerproductprices/${id}`, data),
+
+    delete: (id) =>
+        axiosClient.delete(`/buyerproductprices/${id}`)
 };
 
 export default buyerProductPriceApi;

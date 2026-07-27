@@ -8,34 +8,23 @@
 }
 
 .invoices-table {
-    width: 100%;
-    border-collapse: collapse;
-    background-color: #ffffff;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.invoices-table thead {
-    background-color: #f5f5f5;
-    border-bottom: 2px solid var(--border);
+    width: 95%;
+    border-radius: 5px;
+    padding: 10px;
 }
 
 .invoices-table th {
-    padding: 12px 15px;
-    text-align: left;
-    font-weight: 600;
-    color: var(--text-lm-h);
+    border: 1px solid var(--border);
+    padding: 10px;
+    text-align: center;
 }
 
 .invoices-table td {
-    padding: 12px 15px;
-    border-bottom: 1px solid var(--border);
     color: var(--text-lm);
-}
-
-.invoices-table tbody tr:hover {
-    background-color: #f9f9f9;
+    border: 1px solid var(--border);
+    padding: 10px;
+    text-align: center;
+    justify-content: center;
 }
 
 .status {
@@ -58,6 +47,8 @@
 .actions {
     display: flex;
     gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
 }
 
 .invoices-table button {
@@ -67,16 +58,20 @@
     cursor: pointer;
     font-size: 13px;
     font-weight: 500;
-}
-
-.btn-view {
-    background-color: #e3f2fd;
-    color: #1976d2;
+    margin-top: 6px;
+    margin-bottom: 6px;
+    justify-content: center;
+    align-items: center;
 }
 
 .btn-download {
     background-color: #e8f5e9;
     color: #388e3c;
+}
+
+.btn-view {
+    background-color: #e3f2fd;
+    color: #1976d2;
 }
 
 .btn-delete {
