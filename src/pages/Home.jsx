@@ -1,17 +1,36 @@
-import React, {useState} from 'react'
+import React, {useState, useEffect} from 'react'
 import './Home.css'
 import ItemDialog from '../components/ItemDialog.jsx';
-import axios from "axios";
+import buyerApi from '../api/buyerApi.js';
 
 function Home() {
+    const [buyers, setBuyers] = useState([]);
+    const [selectedBuyerId, setSelectedBuyerId] = useState("");
     const [items, setItems] = useState([]);
     const [showItemDialog, setShowItemDialog] = useState(false);
+
+    
     const addItem = (newItem) => {
         setItems(prev => [...prev, newItem]);
         setShowItemDialog(false);
     };
-
-  return (
+    useEffect(() => {
+        buyerApi.getAll()
+        .then(res => {
+                setBuyers(res.data);
+            })
+            .catch(err => {
+                console.error(err);
+            });
+        }, []);
+        
+        const selectedBuyer = buyers.find(
+            buyer => buyer.id === Number(selectedBuyerId)
+        );
+        
+        const billingAddress = selectedBuyer? `${selectedBuyer.billingAddress}, ${selectedBuyer.city}, ${selectedBuyer.state} - ${selectedBuyer.pinCode}`: "";
+  
+return (
     <>
     <div className='billingarea'>
         <h1>Generate Invoice</h1>
@@ -19,20 +38,16 @@ function Home() {
         <div className='buyerinvoicedetails'>
             <div className='buyerdetails'>
                 <label htmlFor="buyers" className='buyerselect'>Select Buyer:</label>
-                <select name="buyers" id="buyers"  placeholder="Select Buyer" defaultValue="">
-                <option value="" disabled hidden>Select Buyer</option>
-                <option value="">Volvo</option>
-                <option value="buyer1">Buyer1</option>
-                <option value="buyer1">Buyer1</option>
-                <option value="buyer1">Buyer1</option>
-                <option value="newbuyer">Add New Buyer</option>
-                </select>
-                
+                    <select id="buyer" value={selectedBuyerId} 
+                    onChange={(e) => setSelectedBuyerId(e.target.value)}>
+                    <option value="">Select Buyer</option>
+                    {buyers.map((buyer) => (<option key={buyer.id} value={buyer.id}>{buyer.partyName}</option>))}
+                    </select>
                 <label htmlFor="gstin">GSTIN</label>
-                <input type="text" className="gstin" placeholder="Enter GSTIN" defaultValue="128919jdfjio09"></input>
+                <input type="text" readOnly className="gstin" placeholder="Enter GSTIN" value={selectedBuyer?.gstin||""}></input>
                 
                 <label htmlFor="billingaddress">Billing Address</label>
-                <textarea className="billingaddress" placeholder="Enter billing address" value="19-312-0, 12312, qwiejow-13124"></textarea>
+                <textarea className="billingaddress" readOnly rows={3} placeholder="Enter billing address" value={billingAddress}></textarea>
             </div>
             <div className='invoicedetails'>
 
