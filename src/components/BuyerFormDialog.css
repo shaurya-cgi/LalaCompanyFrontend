@@ -18,6 +18,10 @@
     width: 700px;
     max-width: 90vw;
 
+    max-height: 90vh;
+    overflow-y: auto;
+    
+
     background-color: #ffffff;
     border: 1px solid var(--border);
     border-radius: 10px;
