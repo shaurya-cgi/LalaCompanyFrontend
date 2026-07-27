@@ -3,7 +3,9 @@ import { createRoot } from "react-dom/client";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import InvoiceTemplate from "../components/InvoiceTemplate";
-import { extractSignatureValue, resolveAssetUrl } from "./signature";
+
+const GLOBAL_SIGNATURE_URL = "https://lala-company-frontend-bucket.s3.amazonaws.com/signature.png";
+const LOCAL_SIGNATURE_URL = `${import.meta.env.BASE_URL}signature.png`;
 
 const blobToDataUrl =
   (blob) =>
@@ -36,6 +38,24 @@ const fetchAsDataUrl = async (url) => {
   }
 };
 
+const detectImageFormat = (dataUrl) => {
+  const normalized = String(dataUrl || "").toLowerCase();
+  if (normalized.startsWith("data:image/jpeg") || normalized.startsWith("data:image/jpg")) {
+    return "JPEG";
+  }
+
+  return "PNG";
+};
+
+const getSignatureDataUrl = async () => {
+  const remote = await fetchAsDataUrl(GLOBAL_SIGNATURE_URL);
+  if (remote) {
+    return remote;
+  }
+
+  return fetchAsDataUrl(LOCAL_SIGNATURE_URL);
+};
+
 const waitForImages = async (container) => {
   const images = Array.from(container.querySelectorAll("img"));
   if (images.length === 0) {
@@ -63,8 +83,7 @@ const waitForImages = async (container) => {
 };
 
 const renderInvoiceCanvas = async ({ company, buyer, invoice, items, showSignature }) => {
-  const signatureSource = resolveAssetUrl(extractSignatureValue(company));
-  const resolvedSignature = await fetchAsDataUrl(signatureSource);
+  const signatureForPdf = showSignature ? LOCAL_SIGNATURE_URL : "";
 
   const mountNode = document.createElement("div");
   mountNode.style.position = "fixed";
@@ -81,7 +100,7 @@ const renderInvoiceCanvas = async ({ company, buyer, invoice, items, showSignatu
     React.createElement(InvoiceTemplate, {
       company: {
         ...(company || {}),
-        signatureUrl: resolvedSignature || signatureSource || "",
+        signImagePath: signatureForPdf,
       },
       buyer,
       invoice,
@@ -141,7 +160,53 @@ const createInvoicePdf = async ({ company, buyer, invoice, items, showSignature 
     showSignature,
   });
 
-  return buildPdfFromCanvas(canvas);
+  const pdf = buildPdfFromCanvas(canvas);
+
+  if (!showSignature) {
+    return pdf;
+  }
+
+  const signatureDataUrl = await getSignatureDataUrl();
+  if (!signatureDataUrl) {
+    return pdf;
+  }
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const signatureWidth = 44;
+  const signatureHeight = 18;
+  const x = pageWidth - signatureWidth - 16;
+  const y = pageHeight - 63;
+  const imageFormat = detectImageFormat(signatureDataUrl);
+
+  const totalPages = pdf.getNumberOfPages();
+  pdf.setPage(totalPages);
+
+  try {
+    pdf.addImage(
+      signatureDataUrl,
+      imageFormat,
+      x,
+      y,
+      signatureWidth,
+      signatureHeight,
+      undefined,
+      "FAST",
+    );
+  } catch {
+    pdf.addImage(
+      signatureDataUrl,
+      imageFormat === "PNG" ? "JPEG" : "PNG",
+      x,
+      y,
+      signatureWidth,
+      signatureHeight,
+      undefined,
+      "FAST",
+    );
+  }
+
+  return pdf;
 };
 
 export const downloadInvoicePdf = async ({ fileName, company, buyer, invoice, items }) => {

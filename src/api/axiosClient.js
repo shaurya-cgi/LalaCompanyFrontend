@@ -5,18 +5,8 @@ const trimTrailingSlash = (value) => String(value || "").replace(/\/+$/, "");
 const getWindowOrigin = () =>
     typeof window !== "undefined" ? window.location.origin : "";
 
-const isLocalhostRuntime = () => {
-    if (typeof window === "undefined") {
-        return false;
-    }
-
-    const host = window.location.hostname;
-    return host === "localhost" || host === "127.0.0.1";
-};
-
-const defaultApiBaseUrl = isLocalhostRuntime()
-    ? "https://ec2-35-175-222-129.compute-1.amazonaws.com/api"
-    : `${getWindowOrigin()}/api`;
+const defaultApiBaseUrl =
+    "http://ec2-35-175-222-129.compute-1.amazonaws.com:5000/api";
 
 export const API_BASE_URL = trimTrailingSlash(
     import.meta.env.VITE_API_BASE_URL || defaultApiBaseUrl,

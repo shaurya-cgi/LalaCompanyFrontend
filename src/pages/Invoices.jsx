@@ -4,9 +4,8 @@ import invoicesApi from "../api/invoicesApi";
 import invoiceItemApi from "../api/invoiceItemApi";
 import companyApi from "../api/companyApi";
 import { downloadInvoicePdf, printInvoicePdf } from "../utils/invoicePdf";
-import { extractSignatureValue, resolveAssetUrl } from "../utils/signature";
 
-const SIGNATURE_CACHE_KEY = "company_signature_data_url";
+const GLOBAL_SIGNATURE_URL = "https://lala-company-frontend-bucket.s3.amazonaws.com/signature.png";
 
 const parseInvoiceDate = (value) => (value || "").split("T")[0] || "";
 
@@ -77,12 +76,11 @@ function Invoices() {
       .then((res) => {
         const data = normalizeCompanyRecord(res.data);
         setCompanySettings(data);
-        const remoteSignature = resolveAssetUrl(extractSignatureValue(data));
-        setSignatureUrl(remoteSignature || localStorage.getItem(SIGNATURE_CACHE_KEY) || "");
+        setSignatureUrl(GLOBAL_SIGNATURE_URL);
       })
       .catch(() => {
         setCompanySettings(null);
-        setSignatureUrl("");
+        setSignatureUrl(GLOBAL_SIGNATURE_URL);
       });
   }, []);
 
@@ -142,7 +140,7 @@ function Invoices() {
     invoice,
     company: {
       ...(companySettings || {}),
-      signatureUrl,
+      signImagePath: signatureUrl,
     },
     buyer: buildBuyerForPdf(invoice),
     items: invoice.items || [],

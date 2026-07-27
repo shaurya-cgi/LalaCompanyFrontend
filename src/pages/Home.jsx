@@ -8,9 +8,8 @@ import invoicesApi from "../api/invoicesApi.js";
 import invoiceItemApi from "../api/invoiceItemApi.js";
 import companyApi from "../api/companyApi.js";
 import { downloadInvoicePdf, printInvoicePdf } from "../utils/invoicePdf";
-import { extractSignatureValue, resolveAssetUrl } from "../utils/signature";
 
-const SIGNATURE_CACHE_KEY = "company_signature_data_url";
+const GLOBAL_SIGNATURE_URL = "https://lala-company-frontend-bucket.s3.amazonaws.com/signature.png";
 
 const normalizeBuyerPrice = (entry) => ({
   id: entry.id,
@@ -69,12 +68,12 @@ function Home() {
 
         const loadedCompany = normalizeCompanyRecord(companyRes.data);
         setCompanySettings(loadedCompany);
-        const remoteSignature = resolveAssetUrl(extractSignatureValue(loadedCompany));
-        setSignatureUrl(remoteSignature || localStorage.getItem(SIGNATURE_CACHE_KEY) || "");
+        setSignatureUrl(GLOBAL_SIGNATURE_URL);
       })
       .catch((err) => {
         console.error(err);
         setMessage("Failed to load buyers/products/categories.");
+        setSignatureUrl(GLOBAL_SIGNATURE_URL);
       });
   }, []);
 
@@ -280,7 +279,7 @@ function Home() {
     },
     company: {
       ...(companySettings || {}),
-      signatureUrl,
+      signImagePath: signatureUrl,
     },
     buyer: {
       name: selectedBuyer?.partyName,
@@ -308,7 +307,7 @@ function Home() {
         totalAmount: Number((amount + gstAmount).toFixed(2)),
       };
     }),
-    signatureUrl,
+    signImagePath: signatureUrl,
   });
 
   const handlePrintInvoice = async () => {

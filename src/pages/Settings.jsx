@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from "react";
 import "./Settings.css";
 import companyApi from "../api/companyApi";
-import settingsApi from "../api/settingsApi";
-import { extractSignatureValue, resolveAssetUrl } from "../utils/signature";
 
-const SIGNATURE_CACHE_KEY = "company_signature_data_url";
+const GLOBAL_SIGNATURE_URL = "https://lala-company-frontend-bucket.s3.amazonaws.com/signature.png";
 
 const defaultForm = {
   companyName: "",
@@ -43,23 +41,12 @@ const toCompanyPayload = (companyId, formData) => ({
   accNumber: formData.accountNumber,
 });
 
-const fileToDataUrl =
-  (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(String(reader.result || ""));
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-
 function Settings() {
   const [companyId, setCompanyId] = useState(null);
   const [formData, setFormData] = useState(defaultForm);
   const [signatureUrl, setSignatureUrl] = useState("");
-  const [selectedSignature, setSelectedSignature] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isUploadingSignature, setIsUploadingSignature] = useState(false);
   const [message, setMessage] = useState("");
 
   const loadSettings = async () => {
@@ -86,19 +73,11 @@ function Settings() {
         ifsc: settings.ifsc || settings.ifscCode || "",
       });
 
-      setSignatureUrl(
-        resolveAssetUrl(extractSignatureValue(settings)),
-      );
-
-      if (!extractSignatureValue(settings)) {
-        const cachedSignature = localStorage.getItem(SIGNATURE_CACHE_KEY) || "";
-        if (cachedSignature) {
-          setSignatureUrl(cachedSignature);
-        }
-      }
+      setSignatureUrl(GLOBAL_SIGNATURE_URL);
     } catch (error) {
       console.error(error);
       setMessage("Failed to load settings.");
+      setSignatureUrl(GLOBAL_SIGNATURE_URL);
     } finally {
       setIsLoading(false);
     }
@@ -139,62 +118,6 @@ function Settings() {
       setMessage("Failed to save settings.");
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const handleUploadSignature = async () => {
-    if (!selectedSignature) {
-      alert("Please choose a signature image first.");
-      return;
-    }
-
-    setIsUploadingSignature(true);
-    setMessage("");
-
-    try {
-      let activeCompanyId = companyId;
-
-      if (!activeCompanyId) {
-        const createRes = await companyApi.create(toCompanyPayload(null, formData));
-        const created = normalizeCompanyRecord(createRes.data);
-        activeCompanyId = created?.id ?? null;
-        setCompanyId(activeCompanyId);
-      }
-
-      if (!activeCompanyId) {
-        throw new Error("Company settings must be created before signature upload.");
-      }
-
-      let uploadRes;
-
-      try {
-        uploadRes = await companyApi.uploadSignature(activeCompanyId, selectedSignature);
-      } catch (primaryError) {
-        uploadRes = await settingsApi.uploadSignature(selectedSignature);
-        console.warn("Company signature upload failed, used settings fallback endpoint.", primaryError);
-      }
-
-      const uploadedPath = extractSignatureValue(uploadRes?.data || uploadRes);
-      const localSignatureDataUrl = await fileToDataUrl(selectedSignature);
-
-      if (uploadedPath) {
-        setSignatureUrl(resolveAssetUrl(uploadedPath));
-      } else if (localSignatureDataUrl) {
-        setSignatureUrl(localSignatureDataUrl);
-      }
-
-      if (localSignatureDataUrl) {
-        localStorage.setItem(SIGNATURE_CACHE_KEY, localSignatureDataUrl);
-      }
-
-      setSelectedSignature(null);
-      setMessage("Signature updated successfully.");
-      await loadSettings();
-    } catch (error) {
-      console.error(error);
-      setMessage("Failed to upload signature.");
-    } finally {
-      setIsUploadingSignature(false);
     }
   };
 
@@ -249,30 +172,15 @@ function Settings() {
       </form>
 
       <section className="signature-card">
-        <h2>Signature Management</h2>
+        <h2>Signature Preview</h2>
 
         <div className="signature-preview-wrap">
-          <p>Current Signature Preview</p>
+          <p>Current Signature</p>
           {signatureUrl ? (
             <img src={signatureUrl} alt="Current Signature" className="signature-preview" />
           ) : (
             <p>No signature uploaded.</p>
           )}
-        </div>
-
-        <div className="signature-upload-row">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(event) => setSelectedSignature(event.target.files?.[0] || null)}
-          />
-          <button
-            type="button"
-            disabled={isUploadingSignature || !selectedSignature}
-            onClick={handleUploadSignature}
-          >
-            {isUploadingSignature ? "Uploading..." : "Upload New Signature"}
-          </button>
         </div>
       </section>
     </div>

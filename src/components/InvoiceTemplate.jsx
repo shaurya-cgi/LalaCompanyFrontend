@@ -132,9 +132,6 @@ function InvoiceTemplate({
   return (
     <div className="invoice-a4-root">
       <header className="invoice-header">
-        <div className="invoice-logo-wrap">
-          {company?.logoUrl ? <img src={company.logoUrl} alt="Company Logo" className="invoice-logo" /> : null}
-        </div>
         <div className="invoice-company-block">
           <h1>{company?.companyName || "Company Name"}</h1>
           <p>{company?.address || company?.billingAddress || "-"}</p>
@@ -233,8 +230,8 @@ function InvoiceTemplate({
           <p>Certified that the particulars given above are true and correct.</p>
         </div>
         <div className="signature-box">
-          {showSignature && company?.signatureUrl ? (
-            <img src={company.signatureUrl} alt="Authorized Signature" className="signature-image" />
+          {showSignature && company?.signImagePath ? (
+            <img src={company.signImagePath} alt="Authorized Signature" className="signature-image" />
           ) : (
             <div className="signature-placeholder" />
           )}
