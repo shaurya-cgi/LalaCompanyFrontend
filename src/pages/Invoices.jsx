@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import "./Invoices.css";
 import invoicesApi from "../api/invoicesApi";
 import invoiceItemApi from "../api/invoiceItemApi";
+import buyerApi from "../api/buyerApi";
 import companyApi from "../api/companyApi";
 import { downloadInvoicePdf, printInvoicePdf } from "../utils/invoicePdf";
 
@@ -34,6 +35,22 @@ const normalizeInvoice = (invoice) => {
       totalAmount: Number(item.totalAmount || item.price || 0),
       isDeleted: false,
     })),
+  };
+};
+
+const normalizeBuyer = (buyer) => {
+  if (!buyer) {
+    return null;
+  }
+
+  return {
+    id: buyer.id ?? buyer.buyerId,
+    partyName: buyer.partyName || buyer.name || "",
+    gstin: buyer.gstin || "",
+    billingAddress: buyer.billingAddress || buyer.address || "",
+    city: buyer.city || "",
+    state: buyer.state || "",
+    pinCode: buyer.pinCode || buyer.pincode || "",
   };
 };
 
@@ -87,23 +104,108 @@ function Invoices() {
 
   const resolveInvoiceId = (invoice) => invoice.id ?? invoice.invoiceId;
 
+  const hydrateInvoiceItems = async (invoice) => {
+    const existingItems = Array.isArray(invoice.items) ? invoice.items : [];
+    if (existingItems.length > 0 || !invoice.id) {
+      return existingItems;
+    }
+
+    try {
+      const res = await invoiceItemApi.getAll();
+      const allItems = Array.isArray(res.data) ? res.data : [];
+
+      return allItems
+        .filter((item) => Number(item.invoiceId) === Number(invoice.id))
+        .map((item) => ({
+          id: item.id ?? item.invoiceItemId,
+          productId: item.productId,
+          productName: item.productName,
+          qty: Number(item.qty || item.quantity || 0),
+          rate: Number(item.rate || 0),
+          gstRate: Number(item.gstRate || item.gst || 0),
+          amount: Number(item.amount || 0),
+          gstAmount: Number(item.gstAmount || 0),
+          totalAmount: Number(item.totalAmount || item.price || 0),
+          isDeleted: false,
+        }));
+    } catch (error) {
+      console.warn("Unable to fetch invoice items for PDF action", error);
+      return existingItems;
+    }
+  };
+
+  const hydrateBuyer = async (invoice) => {
+    const buyerFromInvoice = normalizeBuyer(invoice.buyer);
+    const buyerId = invoice.buyerId ?? buyerFromInvoice?.id;
+
+    if (!buyerId) {
+      return buyerFromInvoice;
+    }
+
+    try {
+      const res = await buyerApi.getById(buyerId);
+      const buyerFromDb = normalizeBuyer(res.data);
+      return buyerFromDb || buyerFromInvoice;
+    } catch (error) {
+      console.warn("Unable to fetch buyer details for PDF action", error);
+      return buyerFromInvoice;
+    }
+  };
+
   const getInvoiceForAction = async (invoiceSummary) => {
     const id = resolveInvoiceId(invoiceSummary);
 
     if (!id) {
-      return normalizeInvoice(invoiceSummary || {});
+      const fallbackInvoice = normalizeInvoice(invoiceSummary || {});
+      const [hydratedBuyer, hydratedItems] = await Promise.all([
+        hydrateBuyer(fallbackInvoice),
+        hydrateInvoiceItems(fallbackInvoice),
+      ]);
+
+      return {
+        ...fallbackInvoice,
+        buyer: hydratedBuyer || fallbackInvoice.buyer,
+        items: hydratedItems,
+        buyerName:
+          fallbackInvoice.buyerName ||
+          hydratedBuyer?.partyName ||
+          hydratedBuyer?.name ||
+          "",
+        buyerGstin:
+          fallbackInvoice.buyerGstin || fallbackInvoice.gstin || hydratedBuyer?.gstin || "",
+        billingAddress:
+          fallbackInvoice.billingAddress ||
+          fallbackInvoice.buyerAddress ||
+          hydratedBuyer?.billingAddress ||
+          "",
+      };
     }
 
+    let normalized;
     try {
       const res = await invoicesApi.getById(id);
-      const normalized = normalizeInvoice(res.data || {});
+      normalized = normalizeInvoice(res.data || {});
       normalized.buyerName = normalized.buyerName || invoiceSummary.buyerName || "";
       normalized.id = normalized.id || id;
-      return normalized;
     } catch (error) {
       console.warn("Falling back to invoice summary for PDF action", error);
-      return normalizeInvoice({ ...(invoiceSummary || {}), id });
+      normalized = normalizeInvoice({ ...(invoiceSummary || {}), id });
     }
+
+    const [hydratedBuyer, hydratedItems] = await Promise.all([
+      hydrateBuyer(normalized),
+      hydrateInvoiceItems(normalized),
+    ]);
+
+    return {
+      ...normalized,
+      buyer: hydratedBuyer || normalized.buyer,
+      items: hydratedItems,
+      buyerName: normalized.buyerName || hydratedBuyer?.partyName || hydratedBuyer?.name || "",
+      buyerGstin: normalized.buyerGstin || normalized.gstin || hydratedBuyer?.gstin || "",
+      billingAddress:
+        normalized.billingAddress || normalized.buyerAddress || hydratedBuyer?.billingAddress || "",
+    };
   };
 
   const buildBuyerForPdf = (invoice) => {
@@ -126,6 +228,11 @@ function Invoices() {
       name: invoice.buyerName || buyerFromInvoice.partyName || buyerFromInvoice.name || "",
       gstin: invoice.buyerGstin || invoice.gstin || buyerFromInvoice.gstin || "",
       address,
+      city: invoice.buyerCity || buyerFromInvoice.city || "",
+      state: invoice.buyerState || buyerFromInvoice.state || "",
+      pinCode: invoice.buyerPinCode || buyerFromInvoice.pinCode || "",
+      billingAddress:
+        invoice.billingAddress || invoice.buyerAddress || buyerFromInvoice.billingAddress || "",
     };
   };
 
