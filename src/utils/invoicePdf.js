@@ -209,28 +209,27 @@ const createInvoicePdf = async ({ company, buyer, invoice, items, showSignature 
   return pdf;
 };
 
-export const downloadInvoicePdf = async ({ fileName, company, buyer, invoice, items }) => {
-  const pdf = await createInvoicePdf({
-    company,
-    buyer,
-    invoice,
-    items,
-    showSignature: true,
-  });
+const buildPdfBlob = (pdf) => pdf.output("blob");
 
-  pdf.save(fileName || "invoice.pdf");
+const triggerBlobDownload = (blob, fileName) => {
+  const blobUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = blobUrl;
+  anchor.download = fileName || "invoice.pdf";
+  anchor.style.display = "none";
+  document.body.appendChild(anchor);
+  anchor.click();
+
+  setTimeout(() => {
+    URL.revokeObjectURL(blobUrl);
+    if (anchor.parentNode) {
+      anchor.parentNode.removeChild(anchor);
+    }
+  }, 4000);
 };
 
-export const printInvoicePdf = async ({ company, buyer, invoice, items }) => {
-  const pdf = await createInvoicePdf({
-    company,
-    buyer,
-    invoice,
-    items,
-    showSignature: false,
-  });
-
-  const blobUrl = URL.createObjectURL(pdf.output("blob"));
+const openPdfForPrint = (blob) => {
+  const blobUrl = URL.createObjectURL(blob);
   const frame = document.createElement("iframe");
   frame.style.position = "fixed";
   frame.style.width = "0";
@@ -244,7 +243,7 @@ export const printInvoicePdf = async ({ company, buyer, invoice, items }) => {
     setTimeout(() => {
       frame.contentWindow?.focus();
       frame.contentWindow?.print();
-    }, 200);
+    }, 250);
   };
 
   setTimeout(() => {
@@ -253,4 +252,30 @@ export const printInvoicePdf = async ({ company, buyer, invoice, items }) => {
       frame.parentNode.removeChild(frame);
     }
   }, 60000);
+};
+
+export const downloadInvoicePdf = async ({ fileName, company, buyer, invoice, items }) => {
+  const pdf = await createInvoicePdf({
+    company,
+    buyer,
+    invoice,
+    items,
+    showSignature: true,
+  });
+
+  const blob = buildPdfBlob(pdf);
+  triggerBlobDownload(blob, fileName);
+};
+
+export const printInvoicePdf = async ({ company, buyer, invoice, items }) => {
+  const pdf = await createInvoicePdf({
+    company,
+    buyer,
+    invoice,
+    items,
+    showSignature: false,
+  });
+
+  const blob = buildPdfBlob(pdf);
+  openPdfForPrint(blob);
 };

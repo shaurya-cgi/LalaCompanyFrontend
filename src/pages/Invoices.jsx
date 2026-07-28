@@ -10,7 +10,8 @@ const GLOBAL_SIGNATURE_URL = "https://lala-company-frontend-bucket.s3.amazonaws.
 const parseInvoiceDate = (value) => (value || "").split("T")[0] || "";
 
 const normalizeInvoice = (invoice) => {
-  const rawItems = invoice.items || invoice.invoiceItems || [];
+  const rawItemsSource = invoice.items || invoice.invoiceItems || [];
+  const rawItems = Array.isArray(rawItemsSource) ? rawItemsSource : [];
 
   return {
     id: invoice.id ?? invoice.invoiceId,
@@ -86,31 +87,23 @@ function Invoices() {
 
   const resolveInvoiceId = (invoice) => invoice.id ?? invoice.invoiceId;
 
-  const handleOpenEdit = async (invoice) => {
-    const id = resolveInvoiceId(invoice);
+  const getInvoiceForAction = async (invoiceSummary) => {
+    const id = resolveInvoiceId(invoiceSummary);
 
     if (!id) {
-      return;
+      return normalizeInvoice(invoiceSummary || {});
     }
 
     try {
       const res = await invoicesApi.getById(id);
       const normalized = normalizeInvoice(res.data || {});
-      normalized.buyerName = normalized.buyerName || invoice.buyerName || "";
+      normalized.buyerName = normalized.buyerName || invoiceSummary.buyerName || "";
       normalized.id = normalized.id || id;
-      setEditingInvoice(normalized);
-    } catch (err) {
-      console.error(err);
+      return normalized;
+    } catch (error) {
+      console.warn("Falling back to invoice summary for PDF action", error);
+      return normalizeInvoice({ ...(invoiceSummary || {}), id });
     }
-  };
-
-  const getInvoiceForAction = async (invoiceSummary) => {
-    const id = resolveInvoiceId(invoiceSummary);
-    const res = await invoicesApi.getById(id);
-    const normalized = normalizeInvoice(res.data || {});
-    normalized.buyerName = normalized.buyerName || invoiceSummary.buyerName || "";
-    normalized.id = normalized.id || id;
-    return normalized;
   };
 
   const buildBuyerForPdf = (invoice) => {
@@ -344,13 +337,7 @@ function Invoices() {
                   <td>{invoice.buyerName || "-"}</td>
                   <td>₹{Number(invoice.totalAmount || 0).toFixed(2)}</td>
                   <td className="actions">
-                    <button
-                      type="button"
-                      className="editbutton"
-                      onClick={() => handleOpenEdit(invoice)}
-                    >
-                      Edit
-                    </button>
+                    
                     <button
                       type="button"
                       className="btn-view"
